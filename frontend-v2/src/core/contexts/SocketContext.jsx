@@ -527,7 +527,7 @@ export const SocketProvider = ({ children }) => {
         const checkMaintenanceOnce = () => {
           fetch('/', { method: 'HEAD', cache: 'no-store' })
             .then((r) => {
-              if (r.status === 503) window.location.href = '/maintenance.html';
+              if (r.status === 503) window.location.reload();
             })
             .catch(() => {}); // nginx ainda a reiniciar — a proxima tentativa confirma
         };
@@ -614,7 +614,7 @@ export const SocketProvider = ({ children }) => {
     const poll = setInterval(() => {
       fetch('/', { method: 'HEAD', cache: 'no-store' })
         .then((r) => {
-          if (r.status === 503) window.location.href = '/maintenance.html';
+          if (r.status === 503) window.location.reload();
         })
         .catch(() => {}); // falha de rede pontual — o próximo tick confirma
     }, MAINTENANCE_POLL_INTERVAL);

@@ -104,11 +104,14 @@ Convencao `.view`/`.edit` por modulo (ou acoes especificas como `payments.mbway`
 ## Deteção de Modo de Manutenção
 
 `core/contexts/SocketContext.jsx` corre um poll dedicado (8s, independente do
-estado do socket — ver nota sobre ping_timeout no Deploy/README.md) que
-redirecciona para `/maintenance.html` sem refresh manual. `services/auth/
-AuthManager.js` (interceptor Axios) e a desconexao do socket adicionam deteção
-mais rapida quando calha, mas nao sao garantidas por si so. Detalhe completo em
-`Deploy/README.md` ("Pagina de Manutencao").
+estado do socket — ver nota sobre ping_timeout no Deploy/README.md) que faz
+`window.location.reload()` sem refresh manual do utilizador. **Nunca** navegar
+para o URL literal `/maintenance.html` — esse location no nginx está marcado
+`internal`, só resolve para o ficheiro real via o `error_page 503` automático;
+um `window.location.href` directo cai no catch-all da SPA (`index.html`) em vez
+disso. `services/auth/AuthManager.js` (interceptor Axios) e a desconexao do
+socket adicionam deteção mais rapida quando calha, mas nao sao garantidas por
+si so. Detalhe completo em `Deploy/README.md` ("Pagina de Manutencao").
 
 ## Modulos (Features)
 

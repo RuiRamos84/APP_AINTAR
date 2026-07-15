@@ -139,12 +139,16 @@ class AuthManager {
       async (error) => {
         const originalRequest = error.config;
 
-        // Manutenção activa: qualquer 503 redirecciona de imediato para a
-        // página de manutenção — cobre o heartbeat periódico, refetches do
-        // React Query e qualquer acção do utilizador, sem esperar por um
-        // refresh manual. A navegação (não a promise) resolve o pedido.
-        if (error.response?.status === 503 && !window.location.pathname.endsWith('/maintenance.html')) {
-          window.location.href = '/maintenance.html';
+        // Manutenção activa: qualquer 503 recarrega a página actual — o nginx
+        // tem, em cada location, "if (-f maintenance.flag) return 503" +
+        // error_page 503 @maintenance, que substitui o conteúdo pela página
+        // de manutenção mantendo o mesmo URL (internal — nunca navegar para
+        // "/maintenance.html" directamente, esse location está marcado
+        // internal e não resolve para o ficheiro real fora deste mecanismo).
+        // Cobre heartbeat periódico, refetches do React Query e qualquer
+        // acção do utilizador, sem esperar por um refresh manual.
+        if (error.response?.status === 503) {
+          window.location.reload();
           return new Promise(() => {});
         }
 

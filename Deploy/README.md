@@ -127,17 +127,28 @@ Três camadas de deteção no frontend-v2 (`services/auth/AuthManager.js` +
 `core/contexts/SocketContext.jsx`), da mais para a menos fiável:
 
 1. **Poll dedicado, independente do socket** — a cada 8s, `fetch('/')`
-   (mesma rota que a `maintenance.html` usa); redirecciona para
-   `/maintenance.html` se vier 503. **Esta é a camada que garante a deteção**
-   — não depende de nenhum timing do socket.
+   (mesma rota que a `maintenance.html` usa); se vier 503, faz
+   `window.location.reload()`. **Esta é a camada que garante a deteção** — não
+   depende de nenhum timing do socket.
 2. **Interceptor Axios** — qualquer resposta 503 de qualquer pedido (refetch
-   do React Query, ação do utilizador) redirecciona de imediato. Cobertura
+   do React Query, ação do utilizador) recarrega de imediato. Cobertura
    adicional gratuita, mas não garantida por si só (ver armadilha acima).
 3. **Desconexão do socket** — dispara uma rajada curta de verificações HTTP a
    `/` (1.5s/3.5s/6s/10s) caso o TCP feche mais depressa do que o ping-timeout;
    quando isso acontece, deteta-se mais cedo do que o poll da camada 1. Nunca
    decide só pelo erro do socket (evita reagir a uma instabilidade de rede
-   pontual) — só redirecciona se uma verificação confirmar 503.
+   pontual) — só recarrega se uma verificação confirmar 503.
+
+⚠️ **Nunca navegar para o URL literal `/maintenance.html`** (ex.:
+`window.location.href = '/maintenance.html'`). Esse `location` no `nginx.conf`
+está marcado `internal` — só é alcançável através do `error_page 503
+@maintenance` automático, disparado quando QUALQUER location devolve 503
+mantendo o URL original. Um pedido directo do browser a essa URL cai fora do
+mecanismo interno, é servido pelo `location /` (root aponta para
+`react-app/build`, onde `maintenance.html` não existe) e mostra a SPA vazia
+com um erro 503 por cima — bug real, apanhado em produção nesta sessão.
+`window.location.reload()` é sempre a acção correcta: recarrega o URL actual,
+o nginx despacha o 503 e reescreve para a página de manutenção sozinho.
 
 Resultado: sessões autenticadas veem a página de manutenção tipicamente dentro
 de ~8s depois de a manutenção ser ativada, sem refresh.
