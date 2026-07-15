@@ -103,11 +103,12 @@ Convencao `.view`/`.edit` por modulo (ou acoes especificas como `payments.mbway`
 
 ## Deteção de Modo de Manutenção
 
-`services/api/client.js` + `services/auth/AuthManager.js` (interceptor Axios) e
-`core/contexts/SocketContext.jsx` (desconexao do socket) detetam automaticamente
-quando o backend entra em manutencao e redireccionam para `/maintenance.html`
-sem precisar de refresh manual — ver detalhe completo em `Deploy/README.md`
-("Pagina de Manutencao").
+`core/contexts/SocketContext.jsx` corre um poll dedicado (8s, independente do
+estado do socket — ver nota sobre ping_timeout no Deploy/README.md) que
+redirecciona para `/maintenance.html` sem refresh manual. `services/auth/
+AuthManager.js` (interceptor Axios) e a desconexao do socket adicionam deteção
+mais rapida quando calha, mas nao sao garantidas por si so. Detalhe completo em
+`Deploy/README.md` ("Pagina de Manutencao").
 
 ## Modulos (Features)
 

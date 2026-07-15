@@ -852,6 +852,12 @@ function Invoke-NonInteractiveMode {
             $testResult = Test-ServerConnectivity
             $result = $testResult.NetworkReachable -and $testResult.ShareAccessible
         }
+        "enable-maintenance" {
+            $result = Enable-MaintenanceMode
+        }
+        "disable-maintenance" {
+            $result = Disable-MaintenanceMode
+        }
         "build-only" {
             $result = Build-Frontend
         }
@@ -864,7 +870,7 @@ function Invoke-NonInteractiveMode {
         }
         default {
             Write-DeployError "Operação não reconhecida: $Operation" "MAIN"
-            Write-DeployInfo "Operações disponíveis: full, frontend, frontend-nobuild, backend, frontend-backend, frontend-v2, frontend-v2-nobuild, backend-v2, backend-v2-nobuild, frontend-all, frontend-all-nobuild, website, website-nobuild, nginx, test-connection, build-only, validate-build, version" "MAIN"
+            Write-DeployInfo "Operações disponíveis: full, frontend, frontend-nobuild, backend, frontend-backend, frontend-v2, frontend-v2-nobuild, backend-v2, backend-v2-nobuild, frontend-all, frontend-all-nobuild, website, website-nobuild, nginx, test-connection, build-only, validate-build, version, enable-maintenance, disable-maintenance" "MAIN"
             return $false
         }
     }
@@ -948,6 +954,8 @@ function Start-InteractiveMode {
         "8" = @{ Name = "Ver informações do sistema"; Action = { Show-SystemInfo; return $null } }
         "9" = @{ Name = "Testar conectividade com o servidor"; Action = { Show-ConnectivityTest; return $null } }
         "10" = @{ Name = "Mostrar estrutura do servidor"; Action = { Show-ServerStructure; return $null } }
+        "20" = @{ Name = "ATIVAR modo de manutenção (isolado, sem deploy)"; Action = { Enable-MaintenanceMode } }
+        "21" = @{ Name = "DESATIVAR modo de manutenção (isolado, sem deploy)"; Action = { Disable-MaintenanceMode } }
         "12" = @{ Name = "DIAGNOSTICO - Verificar permissoes WinRM (CredSSP)"; Action = { Show-RemoteExecutionTest; return $null } }
         "11" = @{ Name = "Configurações avançadas"; Action = { Show-AdvancedSettings; return $null } }
     }
@@ -1117,6 +1125,8 @@ EXEMPLOS:
     .\Deploy-Main.ps1 -NonInteractive -Operation "full" -BuildFirst -Verbose
     .\Deploy-Main.ps1 -NonInteractive -Operation "frontend" -BuildFirst
     .\Deploy-Main.ps1 -NonInteractive -Operation "test-connection"
+    .\Deploy-Main.ps1 -NonInteractive -Operation "enable-maintenance"   # isolado, sem deploy
+    .\Deploy-Main.ps1 -NonInteractive -Operation "disable-maintenance"
 
 ARQUIVOS DO SISTEMA:
     DeployConfig.ps1     - Configuracoes centralizadas

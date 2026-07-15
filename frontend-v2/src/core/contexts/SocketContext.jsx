@@ -600,6 +600,27 @@ export const SocketProvider = ({ children }) => {
     handlePaymentStatusUpdate,
   ]);
 
+  // Deteção de manutenção independente do estado do socket.
+  // O backend configura ping_interval=25s/ping_timeout=60s (app/__init__.py) —
+  // se o TCP não fechar de forma limpa quando o nginx é morto (taskkill /F não
+  // garante isso), o socket só percebe a queda ao fim de dezenas de segundos,
+  // e enquanto "pensa" que está ligado nem o heartbeat HTTP dispara
+  // (sendHeartbeat() salta-o explicitamente com socket ligado). Este poll não
+  // depende de nada disso: corre sempre, a "/" (mesma rota que a
+  // maintenance.html usa), num intervalo curto e previsível.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const MAINTENANCE_POLL_INTERVAL = 8000;
+    const poll = setInterval(() => {
+      fetch('/', { method: 'HEAD', cache: 'no-store' })
+        .then((r) => {
+          if (r.status === 503) window.location.href = '/maintenance.html';
+        })
+        .catch(() => {}); // falha de rede pontual — o próximo tick confirma
+    }, MAINTENANCE_POLL_INTERVAL);
+    return () => clearInterval(poll);
+  }, [isAuthenticated]);
+
   // Polling de fallback: corre continuamente enquanto autenticado.
   // Não depende de `socket` (state) para evitar reinícios que criam janelas cegas.
   // Intervalo de 3s garante correcção rápida em qualquer estado residual.

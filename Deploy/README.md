@@ -105,30 +105,63 @@ ficheiro anterior em `nginx\html\maintenance-backups\` antes de substituir).
 
 ### Deteção automática no cliente (sem refresh manual)
 
-Ativar a manutenção mata e reinicia o processo nginx (`Enable-MaintenanceMode`),
-o que derruba de imediato todas as ligações WebSocket activas. Uma sessão da app
-já aberta numa aba **não é avisada por si só** de que a manutenção começou — só
-veria a página se fizesse um pedido novo (refresh, navegação, chamada API).
+Ativar a manutenção mata e reinicia o processo nginx — seja via
+`Enable-MaintenanceMode` (`Deploy-Main.ps1 -Operation "enable-maintenance"`) seja
+via `ativar_manutencao.bat` (correm o mesmo `taskkill /F /IM nginx.exe /T` +
+restart). Uma sessão da app já aberta numa aba **não é avisada por si só** de
+que a manutenção começou — só veria a página se fizesse um pedido novo (refresh,
+navegação, chamada API).
 
-Para cobrir isso sem intervenção do utilizador, o frontend-v2 tem duas camadas
-de deteção (`frontend-v2/src/services/auth/AuthManager.js` +
-`frontend-v2/src/core/contexts/SocketContext.jsx`):
+**Armadilha descoberta em produção:** a primeira versão desta deteção confiava
+no evento `disconnect` do socket para reagir depressa. Não chega — o backend
+configura `ping_interval=25s` / `ping_timeout=60s` (`backend/app/__init__.py`),
+e um `taskkill /F` não garante um fecho TCP limpo e imediato; se o browser não
+detetar a queda de imediato, o socket só a percebe pelo seu próprio timeout de
+ping, ao fim de **dezenas de segundos**. E enquanto o socket "pensa" que está
+ligado, o heartbeat HTTP nem dispara (`sendHeartbeat()` salta-o de propósito
+quando `isSocketConnected()`) — nesse intervalo a app não faz pedido nenhum,
+logo nada deteta a manutenção. Confirmado com teste real: mesmo numa aba nova
+(sem bundle antigo em memória), sem este poll a deteção não acontecia.
 
-1. **Interceptor Axios** — qualquer resposta 503 de qualquer pedido (heartbeat
-   periódico de 10 min, refetch do React Query, ação do utilizador) redirecciona
-   de imediato para `/maintenance.html`.
-2. **Desconexão do socket** — como o restart do nginx derruba o WebSocket em
-   segundos, o evento `disconnect` dispara uma rajada curta de verificações
-   HTTP reais a `/` (1.5s/3.5s/6s/10s); só redirecciona se alguma confirmar 503
-   (nunca decide só pelo erro do socket, para não reagir a uma instabilidade de
-   rede pontual). Cancela-se sozinha se o socket reconectar por conta própria.
+Três camadas de deteção no frontend-v2 (`services/auth/AuthManager.js` +
+`core/contexts/SocketContext.jsx`), da mais para a menos fiável:
 
-Resultado: sessões autenticadas com socket ligado (a generalidade) veem a página
-de manutenção em poucos segundos depois de `-EnableMaintenance`, sem refresh.
+1. **Poll dedicado, independente do socket** — a cada 8s, `fetch('/')`
+   (mesma rota que a `maintenance.html` usa); redirecciona para
+   `/maintenance.html` se vier 503. **Esta é a camada que garante a deteção**
+   — não depende de nenhum timing do socket.
+2. **Interceptor Axios** — qualquer resposta 503 de qualquer pedido (refetch
+   do React Query, ação do utilizador) redirecciona de imediato. Cobertura
+   adicional gratuita, mas não garantida por si só (ver armadilha acima).
+3. **Desconexão do socket** — dispara uma rajada curta de verificações HTTP a
+   `/` (1.5s/3.5s/6s/10s) caso o TCP feche mais depressa do que o ping-timeout;
+   quando isso acontece, deteta-se mais cedo do que o poll da camada 1. Nunca
+   decide só pelo erro do socket (evita reagir a uma instabilidade de rede
+   pontual) — só redirecciona se uma verificação confirmar 503.
+
+Resultado: sessões autenticadas veem a página de manutenção tipicamente dentro
+de ~8s depois de a manutenção ser ativada, sem refresh.
 
 ⚠️ Esta lógica vive no **bundle do frontend-v2** — só entra em vigor depois de
 recompilar e voltar a fazer deploy (`DeployFrontend.ps1` / `Deploy-Main.ps1`),
 não com uma simples troca do `maintenance.html`.
+
+### Ativar/Desativar manutenção isolada (sem fazer deploy)
+
+Antes só era possível ativar a manutenção como parte de um deployment completo
+(`Invoke-MaintenanceWindow`). Agora há um caminho isolado, útil para testar a
+deteção do lado do cliente sem mexer em backend/frontend:
+
+```powershell
+.\Deploy-Main.ps1 -NonInteractive -Operation "enable-maintenance"
+.\Deploy-Main.ps1 -NonInteractive -Operation "disable-maintenance"
+
+# ou no menu interativo (.\Deploy-Main.ps1): opções 20 e 21
+```
+
+Equivalente aos scripts `ativar_manutencao.bat` / `desativar_manutencao.bat`
+(raiz do repo, espelham `D:\APP\NewAPP\nginx\` no servidor) — mesma ação
+(flag + taskkill + restart nginx), só muda o mecanismo de invocação.
 
 ## Pré-requisitos
 
@@ -205,40 +238,39 @@ cd C:\Users\rui.ramos\Desktop\APP\Deploy
 .\Deploy-Main.ps1
 ```
 
-Opções do menu:
-- **1** - Deploy Frontend e Backend (completo)
-- **2** - Deploy apenas Frontend
-- **3** - Deploy apenas Backend
-- **4** - Ativar modo de manutenção
-- **5** - Desativar modo de manutenção
-- **6** - Parar Backend
-- **7** - Iniciar Backend
-- **8** - Reiniciar Nginx
-- **9** - Criar backup manual
-- **10** - Validar configuração
-- **11** - Testar conectividade
+Opções do menu (ver a lista completa e actual em `Show-DeployMenu`/`Start-InteractiveMode`
+em `Deploy-Main.ps1` — os números abaixo são os mais usados):
+- **1** - Deployment Completo (Frontend + Backend + Nginx)
+- **2/3** - Deployment Frontend (com/sem build)
+- **4** - Deployment Backend
+- **13/14** - Deployment Frontend-V2 (com/sem build)
+- **20** - Ativar modo de manutenção (isolado, sem deploy)
+- **21** - Desativar modo de manutenção (isolado, sem deploy)
+- **9** - Testar conectividade
 - **0** - Sair
 
 ### Modo Não-Interativo (Linha de Comando)
 
+Não há switches dedicados por operação — usa-se sempre `-NonInteractive -Operation "<nome>"`:
+
 ```powershell
 # Deploy completo
-.\Deploy-Main.ps1 -DeployAll
+.\Deploy-Main.ps1 -NonInteractive -Operation "full" -BuildFirst
 
 # Deploy apenas frontend
-.\Deploy-Main.ps1 -DeployFrontend
+.\Deploy-Main.ps1 -NonInteractive -Operation "frontend" -BuildFirst
 
 # Deploy apenas backend
-.\Deploy-Main.ps1 -DeployBackend
+.\Deploy-Main.ps1 -NonInteractive -Operation "backend"
 
-# Ativar manutenção
-.\Deploy-Main.ps1 -EnableMaintenance
+# Ativar manutenção (isolado — não faz deploy, não versiona)
+.\Deploy-Main.ps1 -NonInteractive -Operation "enable-maintenance"
 
 # Desativar manutenção
-.\Deploy-Main.ps1 -DisableMaintenance
+.\Deploy-Main.ps1 -NonInteractive -Operation "disable-maintenance"
 
-# Validar sem executar
-.\Deploy-Main.ps1 -ValidateOnly
+# Testar conectividade sem alterar nada
+.\Deploy-Main.ps1 -NonInteractive -Operation "test-connection"
 ```
 
 ### Exemplo de Output
@@ -361,7 +393,7 @@ Get-Content "\\172.16.2.35\app\NewAPP\nginx\conf\nginx.conf"
 **Solução:**
 ```powershell
 # Via deployment system
-.\Deploy-Main.ps1 -DisableMaintenance
+.\Deploy-Main.ps1 -NonInteractive -Operation "disable-maintenance"
 
 # Manual
 Remove-Item "\\172.16.2.35\app\NewAPP\nginx\maintenance.flag" -Force
