@@ -314,6 +314,7 @@ cd website && npm run build     # Production build
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\MUI Grid v7 Syntax.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\PermissionContext Race Condition.md
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\Session Pool Checkout BD.md
+@C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\07 - Bugs & Soluções\Heartbeat via Socket sem Handler Backend.md
 
 ### API Reference
 @C:\Users\rui.ramos\OneDrive - AINTAR\Documentos\Obsidian Vault\10 - API Reference\Auth.md
