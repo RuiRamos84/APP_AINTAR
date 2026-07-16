@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, FormControl, InputLabel, Select,
-  MenuItem, Stack,
+  MenuItem, Stack, FormHelperText,
 } from '@mui/material';
 import { useColaboradores } from '../hooks/useRhLookups';
 
@@ -86,13 +86,16 @@ const FaltaFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) =
               render={({ field }) => (
                 <TextField {...field} label="Data *" type="date"
                   size="small" fullWidth InputLabelProps={{ shrink: true }}
-                  error={!!errors.data} />
+                  error={!!errors.data}
+                  disabled={!!initial}
+                  helperText={initial ? 'A data não pode ser alterada após o registo.' : undefined}
+                />
               )}
             />
 
             <Controller name="comunicado_por" control={control}
               render={({ field }) => (
-                <FormControl fullWidth size="small">
+                <FormControl fullWidth size="small" disabled={!!initial}>
                   <InputLabel>Comunicado por (opcional)</InputLabel>
                   <Select {...field} label="Comunicado por (opcional)">
                     <MenuItem value="">—</MenuItem>
@@ -100,6 +103,7 @@ const FaltaFormModal = ({ open, onClose, onSave, isSaving, initial, lookups }) =
                       <MenuItem key={c.pk} value={c.pk}>{c.name}</MenuItem>
                     ))}
                   </Select>
+                  {initial && <FormHelperText>Não é possível alterar após o registo.</FormHelperText>}
                 </FormControl>
               )}
             />

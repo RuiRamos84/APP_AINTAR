@@ -20,9 +20,11 @@ import {
   LogoutOutlined as SaidaIcon,
   DirectionsWalk as SaidaTempIcon,
   KeyboardReturn as RegressoIcon,
+  StickyNote2 as NotaIcon,
 } from '@mui/icons-material';
 import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { useAuth } from '@/core/contexts/AuthContext';
 import { usePermissions } from '@/core/contexts/PermissionContext';
 import { usePontoActions } from '../hooks/usePonto';
 import { useFaltas } from '../hooks/useFaltas';
@@ -49,99 +51,131 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 // ─── Linha de evento com edição inline (admin) ────────────────────────────────
 
-function EventoRow({ ev, isAdmin, onMapOpen, onSave, isSaving, dateStr }) {
+function EventoRow({ ev, podeEditar, onMapOpen, onSave, isSaving, dateStr }) {
   const [editing, setEditing] = useState(false);
   const [editTime, setEditTime] = useState('');
+  const [editNotas, setEditNotas] = useState('');
+  const [editNotasTouched, setEditNotasTouched] = useState(false);
   const def  = EVENTOS_MAP[ev.tt_evento_fk] || {};
   const Icon = def.icon;
 
   const handleEditStart = () => {
     const t = fmtTime(ev.ts_registo) || '';
     setEditTime(t);
+    setEditNotas(ev.notas || '');
+    setEditNotasTouched(false);
     setEditing(true);
   };
 
   const handleSave = async () => {
-    if (!editTime) return;
-    await onSave(ev.pk, `${dateStr}T${editTime}:00`);
+    if (!editTime || !editNotas.trim()) return;
+    await onSave(ev.pk, `${dateStr}T${editTime}:00`, editNotas.trim());
     setEditing(false);
   };
 
   return (
-    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ py: 1 }}>
-      {/* Ícone */}
-      <Box sx={{
-        width: 32, height: 32, borderRadius: '50%',
-        bgcolor: alpha(def.color || '#999', 0.12),
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-      }}>
-        {Icon && <Icon sx={{ fontSize: 16, color: def.color }} />}
-      </Box>
+    <Box sx={{ py: 1 }}>
+      <Stack direction="row" alignItems="center" spacing={1.5}>
+        {/* Ícone */}
+        <Box sx={{
+          width: 32, height: 32, borderRadius: '50%',
+          bgcolor: alpha(def.color || '#999', 0.12),
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          {Icon && <Icon sx={{ fontSize: 16, color: def.color }} />}
+        </Box>
 
-      {/* Nome */}
-      <Typography variant="body2" fontWeight={600} sx={{ minWidth: 130 }}>
-        {ev.evento_descr || def.label}
-      </Typography>
-
-      {/* Hora ou campo de edição */}
-      {editing ? (
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <TextField
-            type="time"
-            size="small"
-            value={editTime}
-            onChange={e => setEditTime(e.target.value)}
-            sx={{ width: 110 }}
-            inputProps={{ step: 60 }}
-          />
-          <Tooltip title="Guardar">
-            <span>
-              <IconButton size="small" color="primary" onClick={handleSave} disabled={isSaving}>
-                <SaveIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Cancelar">
-            <IconButton size="small" onClick={() => setEditing(false)}>
-              <CloseIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ) : (
-        <Typography variant="body2" fontWeight={700} color="text.secondary" sx={{ minWidth: 42 }}>
-          {fmtTime(ev.ts_registo)}
+        {/* Nome */}
+        <Typography variant="body2" fontWeight={600} sx={{ minWidth: 130 }}>
+          {ev.evento_descr || def.label}
         </Typography>
-      )}
 
-      {/* Badges + acções */}
-      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 'auto' }}>
-        {ev.fonte === 'app+face' && (
-          <Chip
-            icon={<FaceIcon sx={{ fontSize: '12px !important' }} />}
-            label="Face" size="small" color="success" variant="outlined"
-            sx={{ height: 20, fontSize: 10 }}
-          />
+        {/* Hora ou campo de edição */}
+        {editing ? (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <TextField
+              type="time"
+              size="small"
+              value={editTime}
+              onChange={e => setEditTime(e.target.value)}
+              sx={{ width: 110 }}
+              inputProps={{ step: 60 }}
+            />
+            <Tooltip title={editNotas.trim() ? 'Guardar' : 'Justificação obrigatória'}>
+              <span>
+                <IconButton size="small" color="primary" onClick={handleSave} disabled={isSaving || !editNotas.trim()}>
+                  <SaveIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Cancelar">
+              <IconButton size="small" onClick={() => setEditing(false)}>
+                <CloseIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        ) : (
+          <Typography variant="body2" fontWeight={700} color="text.secondary" sx={{ minWidth: 42 }}>
+            {fmtTime(ev.ts_registo)}
+          </Typography>
         )}
-        {ev.fonte === 'correcao' && (
-          <Chip label="Corrigido" size="small" color="warning" sx={{ height: 20, fontSize: 10 }} />
-        )}
-        {ev.tem_gps && (
-          <Tooltip title="Ver localização GPS">
-            <IconButton size="small" onClick={() => onMapOpen(ev)}>
-              <MapIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        )}
-        {isAdmin && !editing && (
-          <Tooltip title="Corrigir hora">
-            <IconButton size="small" onClick={handleEditStart}>
-              <EditIcon sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Tooltip>
-        )}
+
+        {/* Badges + acções */}
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 'auto' }}>
+          {ev.fonte === 'app+face' && (
+            <Chip
+              icon={<FaceIcon sx={{ fontSize: '12px !important' }} />}
+              label="Face" size="small" color="success" variant="outlined"
+              sx={{ height: 20, fontSize: 10 }}
+            />
+          )}
+          {ev.fonte === 'correcao' && (
+            <Chip label="Corrigido" size="small" color="warning" sx={{ height: 20, fontSize: 10 }} />
+          )}
+          {ev.notas && !editing && (
+            <Tooltip title={ev.notas}>
+              <NotaIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+            </Tooltip>
+          )}
+          {ev.tem_gps && (
+            <Tooltip title="Ver localização GPS">
+              <IconButton size="small" onClick={() => onMapOpen(ev)}>
+                <MapIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+          {podeEditar && !editing && (
+            <Tooltip title="Corrigir hora">
+              <IconButton size="small" onClick={handleEditStart}>
+                <EditIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
       </Stack>
-    </Stack>
+
+      {/* Justificação — obrigatória em edição, alinhada por baixo do ícone+nome.
+          Erro só depois de tocado (onBlur) — não assustar antes de escrever.
+          O padding-left fica na Box exterior, não no sx do TextField — aplicado
+          directamente no TextField desalinha a label (posicionada com base na
+          própria caixa do input) da borda (deslocada pelo padding). */}
+      {editing && (
+        <Box sx={{ mt: 1, pl: { sm: 6 } }}>
+          <TextField
+            size="small"
+            label="Justificação da correção *"
+            placeholder="Ex: atraso no trânsito, esqueci-me de picar…"
+            value={editNotas}
+            onChange={e => setEditNotas(e.target.value)}
+            onBlur={() => setEditNotasTouched(true)}
+            error={editNotasTouched && !editNotas.trim()}
+            helperText={editNotasTouched && !editNotas.trim() ? 'Obrigatório explicar a correcção.' : ' '}
+            fullWidth
+          />
+        </Box>
+      )}
+    </Box>
   );
 }
 
@@ -151,6 +185,7 @@ function AdicionarEventoForm({ dateStr, userFk, existingTypes, onAdicionado, isS
   const [tipo, setTipo] = useState('');
   const [hora, setHora] = useState('');
   const [notas, setNotas] = useState('');
+  const [notasTouched, setNotasTouched] = useState(false);
 
   const opcoesDisponiveis = Object.entries(EVENTOS_MAP)
     .filter(([fk]) => !existingTypes.has(Number(fk)))
@@ -159,16 +194,17 @@ function AdicionarEventoForm({ dateStr, userFk, existingTypes, onAdicionado, isS
   if (!opcoesDisponiveis.length) return null;
 
   const handleAdicionar = async () => {
-    if (!tipo || !hora) return;
+    if (!tipo || !hora || !notas.trim()) return;
     await onAdicionado({
       user_fk: userFk,
       tt_evento_fk: Number(tipo),
       ts_registo: `${dateStr}T${hora}:00`,
-      notas: notas || undefined,
+      notas: notas.trim(),
     });
     setTipo('');
     setHora('');
     setNotas('');
+    setNotasTouched(false);
   };
 
   return (
@@ -202,7 +238,7 @@ function AdicionarEventoForm({ dateStr, userFk, existingTypes, onAdicionado, isS
             variant="contained"
             size="small"
             loading={isSaving}
-            disabled={!tipo || !hora}
+            disabled={!tipo || !hora || !notas.trim()}
             startIcon={<AddIcon />}
             onClick={handleAdicionar}
             sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' }, alignSelf: 'center' }}
@@ -212,9 +248,13 @@ function AdicionarEventoForm({ dateStr, userFk, existingTypes, onAdicionado, isS
         </Stack>
         <TextField
           size="small"
-          label="Notas (opcional)"
+          label="Justificação do novo registo *"
+          placeholder="Ex: atraso no trânsito, esqueci-me de picar…"
           value={notas}
           onChange={e => setNotas(e.target.value)}
+          onBlur={() => setNotasTouched(true)}
+          error={notasTouched && !notas.trim()}
+          helperText={notasTouched && !notas.trim() ? 'Obrigatório explicar o motivo do registo em falta.' : ' '}
           fullWidth
         />
       </Stack>
@@ -227,10 +267,17 @@ function AdicionarEventoForm({ dateStr, userFk, existingTypes, onAdicionado, isS
 const DiaDePontoModal = ({ open, onClose, dateStr, eventos, userFk, onMapOpen }) => {
   const theme    = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { user } = useAuth();
   const { hasPermission } = usePermissions();
-  // rh.admin corrige qualquer colaborador; rh.validate (supervisor) é restringido
-  // do lado do backend à sua equipa directa e apenas enquanto o mapa está pendente.
-  const podeCorrigir = hasPermission('rh.admin') || hasPermission('rh.validate');
+  const isSelf = !!userFk && user?.user_id === userFk;
+  // Auto-correcao: o próprio colaborador corrige/adiciona o seu registo —
+  // sempre com justificação obrigatória, é ele o responsável pelo seu ponto.
+  // Correcao em nome de outrem: rh.admin corrige qualquer colaborador;
+  // rh.validate (supervisor) é restringido do lado do backend à sua equipa
+  // directa e apenas enquanto o mapa está pendente.
+  const podeAutoCorrigir  = isSelf && hasPermission('rh.edit');
+  const podeCorrigirEquipa = hasPermission('rh.admin') || hasPermission('rh.validate');
+  const podeCorrigir = podeAutoCorrigir || podeCorrigirEquipa;
 
   const { corrigir, isCorrigindo, adicionarAdmin, isAdicionandoAdmin } = usePontoActions(userFk);
   const { criar: criarFalta, isCriando: isCriandoFalta } = useFaltas();
@@ -255,8 +302,8 @@ const DiaDePontoModal = ({ open, onClose, dateStr, eventos, userFk, onMapOpen })
       })
     : '';
 
-  const handleCorrigir = async (pk, ts_registo) => {
-    await corrigir({ pk, data: { ts_registo, notas: 'Correcção manual (responsável)' } });
+  const handleCorrigir = async (pk, ts_registo, notas) => {
+    await corrigir({ pk, data: { ts_registo, notas } });
   };
 
   const handleAdicionarAdmin = async (data) => {
@@ -326,7 +373,7 @@ const DiaDePontoModal = ({ open, onClose, dateStr, eventos, userFk, onMapOpen })
                 <EventoRow
                   key={ev.pk}
                   ev={ev}
-                  isAdmin={podeCorrigir}
+                  podeEditar={podeCorrigir}
                   onMapOpen={onMapOpen}
                   onSave={handleCorrigir}
                   isSaving={isCorrigindo}

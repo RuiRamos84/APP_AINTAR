@@ -7,6 +7,7 @@ import {
   AccessTime as PontoIcon,
   BeachAccess as FeriasIcon,
   EventBusy as FaltasIcon,
+  Badge as ParticipacoesIcon,
   Schedule as HorariosIcon,
   NightShelter as PiqueteIcon,
   ManageAccounts as GestPessoalIcon,
@@ -23,6 +24,7 @@ import { useColaboradores } from '../hooks/useRhLookups';
 import { usePontoHoje } from '../hooks/usePonto';
 import { useFerias } from '../hooks/useFerias';
 import { useFaltas } from '../hooks/useFaltas';
+import { useParticipacoes } from '../hooks/useParticipacao';
 import { useHorarios } from '../hooks/useHorarios';
 import { usePiquete } from '../hooks/usePiquete';
 
@@ -160,6 +162,31 @@ const FaltasContent = ({ userFk }) => {
       </Typography>
       {pendentes > 0 && (
         <Chip label={`${pendentes} por justificar`} size="small" color="warning" variant="outlined" />
+      )}
+    </Stack>
+  );
+};
+
+// ─── Conteúdo: Participações recentes ────────────────────────────────────────
+
+const ParticipacoesContent = ({ userFk }) => {
+  const { participacoes, isLoading } = useParticipacoes({ user_fk: userFk });
+
+  if (isLoading) return <Skeleton />;
+
+  if (participacoes.length === 0) {
+    return <Typography variant="body2" color="text.secondary">Sem registos.</Typography>;
+  }
+
+  const pendentes = participacoes.filter(p => p.ts_estado_fk === 1).length;
+
+  return (
+    <Stack spacing={1}>
+      <Typography variant="body2">
+        <strong>{participacoes.length}</strong> participação(ões)
+      </Typography>
+      {pendentes > 0 && (
+        <Chip label={`${pendentes} pendente(s)`} size="small" color="warning" variant="outlined" />
       )}
     </Stack>
   );
@@ -317,6 +344,13 @@ const SECTIONS = [
     title: 'Faltas',
     color: '#d97706',
     Content: FaltasContent,
+  },
+  {
+    to: '/rh/pessoal/participacoes',
+    icon: ParticipacoesIcon,
+    title: 'Participações de Ausências',
+    color: '#9333ea',
+    Content: ParticipacoesContent,
   },
   {
     to: '/rh/pessoal/horarios',

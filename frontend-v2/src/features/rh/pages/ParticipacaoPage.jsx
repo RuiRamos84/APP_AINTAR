@@ -216,6 +216,7 @@ const ParticipacaoPage = () => {
         target={wfTarget}
         onConfirm={workflow}
         isLoading={isWorkflow}
+        isAdmin={isAdmin}
       />
     </ModulePage>
   );

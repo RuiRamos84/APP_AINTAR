@@ -7,13 +7,14 @@ const KEYS = {
   equipa:    (p) => ['rh-gestao-equipa', p],
 };
 
-export const usePendentes = (params = {}) => {
+export const usePendentes = (params = {}, options = {}) => {
   const qc = useQueryClient();
 
   const query = useQuery({
     queryKey: KEYS.pendentes(params),
     queryFn: () => getPendentes(params),
     staleTime: 60 * 1000,
+    enabled: options.enabled ?? true,
   });
 
   const invalidate = () => {

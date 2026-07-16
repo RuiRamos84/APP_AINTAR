@@ -79,6 +79,7 @@ const RhPessoalPage = lazy(() => import('@/features/rh/pages/RhPessoalPage'));
 const RhChefiaPage = lazy(() => import('@/features/rh/pages/RhChefiaPage'));
 const RhAdminPage = lazy(() => import('@/features/rh/pages/RhAdminPage'));
 const FeriasPage = lazy(() => import('@/features/rh/pages/FeriasPage'));
+const FaltasPage = lazy(() => import('@/features/rh/pages/FaltasPage'));
 const ParticipacaoPage = lazy(() => import('@/features/rh/pages/ParticipacaoPage'));
 const HorariosPage = lazy(() => import('@/features/rh/pages/HorariosPage'));
 const PiquetePage = lazy(() => import('@/features/rh/pages/PiquetePage'));
@@ -247,7 +248,8 @@ export default function BackofficeRoutes() {
         <Route path="/rh/admin"                     element={<RhAdminPage />} />
         <Route path="/rh/pessoal/ponto"             element={<PontoPage />} />
         <Route path="/rh/pessoal/ferias"            element={<FeriasPage />} />
-        <Route path="/rh/pessoal/faltas"            element={<ParticipacaoPage />} />
+        <Route path="/rh/pessoal/faltas"            element={<FaltasPage />} />
+        <Route path="/rh/pessoal/participacoes"     element={<ParticipacaoPage />} />
         <Route path="/rh/pessoal/horarios"          element={<HorariosPage />} />
         <Route path="/rh/pessoal/piquete"           element={<PiquetePage />} />
         <Route path="/rh/gestao/colaboradores"      element={<GestaoColaboradoresPage />} />

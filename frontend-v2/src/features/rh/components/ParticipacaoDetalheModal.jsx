@@ -17,6 +17,7 @@ import {
   LocationOn as ForaLocalIcon,
 } from '@mui/icons-material';
 import { toast } from 'sonner';
+import { usePermissions } from '@/core/contexts/PermissionContext';
 import { useParticipacaoDetail, useParticipacaoWorkflow } from '../hooks/useParticipacao';
 import { downloadAnexoParticipacao } from '../services/rhService';
 import EstadoBadge from './EstadoBadge';
@@ -42,6 +43,8 @@ const ParticipacaoDetalheModal = ({ open, onClose, pendente }) => {
   const [wfOpen, setWfOpen] = useState(false);
   const [preview, setPreview] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission('rh.admin');
 
   const pk = pendente?.pk;
   const { participacao, isLoading, isError } = useParticipacaoDetail(open ? pk : null);
@@ -264,6 +267,7 @@ const ParticipacaoDetalheModal = ({ open, onClose, pendente }) => {
         initialStep={stepFromEstado(participacao?.ts_estado_fk)}
         onConfirm={workflow}
         isLoading={isWorkflow}
+        isAdmin={isAdmin}
       />
 
       <DocumentPreviewDialog

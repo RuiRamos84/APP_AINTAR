@@ -40,13 +40,16 @@ const TIPO_CONFIG = {
   participacao: { label: 'Participação',  icon: <PartIcon   sx={{ fontSize: 16 }} />, color: COLOR,     step: 1 },
 };
 
-// Mapeamento de ts_estado_fk para acção de aprovação/rejeição
-const APROVAR_FK  = 2;  // Aprovado pelo supervisor (nível 1)
-const REJEITAR_FK = 4;  // Rejeitado
+// Workflow de 2 níveis (férias/faltas/ponto): 1=Pendente→2=Validado(chefe),
+// 2=Validado→3=Aprovado(Admin RH). O nível se deriva do ts_estado_fk actual
+// da selecção — nunca fixo, para os itens em nível 2 (Admin RH) que a fila
+// passou a mostrar avançarem para o estado correcto.
+const APROVAR_ESTADO_POR_STEP = { 1: 2, 2: 3 };
+const REJEITAR_FK = 4;  // Rejeitado — igual em qualquer nível
 
 // ─── Bulk Toolbar (aparece quando há selecção) ────────────────────────────────
 
-const BulkToolbar = ({ selected, tipo, onAprovar, onRejeitar, isBulking }) => {
+const BulkToolbar = ({ selected, tipo, step, onAprovar, onRejeitar, isBulking }) => {
   if (selected.length === 0) return null;
   return (
     <Stack
@@ -63,13 +66,16 @@ const BulkToolbar = ({ selected, tipo, onAprovar, onRejeitar, isBulking }) => {
       <Typography variant="body2" fontWeight={600}>
         {selected.length} seleccionado{selected.length !== 1 ? 's' : ''}
       </Typography>
+      {step === 2 && (
+        <Chip label="Nível 2 — Admin RH" size="small" color="secondary" variant="outlined" />
+      )}
       <Button
         size="small"
         variant="contained"
         color="success"
         startIcon={isBulking ? <CircularProgress size={14} color="inherit" /> : <AprovarIcon />}
         disabled={isBulking}
-        onClick={() => onAprovar(selected, tipo)}
+        onClick={() => onAprovar(selected, tipo, step)}
         sx={{ whiteSpace: 'nowrap' }}
       >
         Aprovar todos
@@ -80,7 +86,7 @@ const BulkToolbar = ({ selected, tipo, onAprovar, onRejeitar, isBulking }) => {
         color="error"
         startIcon={<RejeitarIcon />}
         disabled={isBulking}
-        onClick={() => onRejeitar(selected, tipo)}
+        onClick={() => onRejeitar(selected, tipo, step)}
         sx={{ whiteSpace: 'nowrap' }}
       >
         Rejeitar todos
@@ -108,20 +114,28 @@ const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBul
     return first?.tipo || null;
   }, [selectedIds, results]);
 
+  // Nível do workflow da selecção actual — todas as linhas seleccionadas têm
+  // o mesmo ts_estado_fk (garantido por isRowSelectable abaixo).
+  const selectedStep = useMemo(() => {
+    if (selectedIds.length === 0) return 1;
+    const first = results.find(r => r.id === selectedIds[0]);
+    return first?.ts_estado_fk === 2 ? 2 : 1;
+  }, [selectedIds, results]);
+
   const clearSelection = useCallback(() => {
     setSelectedIds([]);
     apiRef.current?.setRowSelectionModel([]);
   }, [apiRef]);
 
-  const handleAprovar = useCallback((ids, tipo) => {
+  const handleAprovar = useCallback((ids, tipo, step) => {
     const pks = ids.map(id => Number(id.split('-')[1]));
-    onBulkAction({ tipo, pks, step: 1, ts_estado_fk: APROVAR_FK });
+    onBulkAction({ tipo, pks, step, ts_estado_fk: APROVAR_ESTADO_POR_STEP[step] });
     clearSelection();
   }, [onBulkAction, clearSelection]);
 
-  const handleRejeitar = useCallback((ids, tipo) => {
+  const handleRejeitar = useCallback((ids, tipo, step) => {
     const pks = ids.map(id => Number(id.split('-')[1]));
-    onBulkAction({ tipo, pks, step: 1, ts_estado_fk: REJEITAR_FK });
+    onBulkAction({ tipo, pks, step, ts_estado_fk: REJEITAR_FK });
     clearSelection();
   }, [onBulkAction, clearSelection]);
 
@@ -187,6 +201,7 @@ const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBul
       <BulkToolbar
         selected={selectedIds}
         tipo={selectedTipo}
+        step={selectedStep}
         onAprovar={handleAprovar}
         onRejeitar={handleRejeitar}
         isBulking={isBulking}
@@ -212,9 +227,11 @@ const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBul
           // clicar na linha abre o detalhe para validar individualmente.
           if (row.tipo === 'participacao') return false;
           if (selectedIds.length === 0) return true;
-          // Só permite seleccionar o mesmo tipo (workflow é por tipo)
+          // Só permite seleccionar o mesmo tipo e o mesmo nível de workflow
+          // (uma chamada bulk só aceita um par step/estado-destino).
           const firstSelected = results.find(r => r.id === selectedIds[0]);
-          return !firstSelected || row.tipo === firstSelected.tipo;
+          return !firstSelected
+            || (row.tipo === firstSelected.tipo && row.ts_estado_fk === firstSelected.ts_estado_fk);
         }}
         pageSizeOptions={[25, 50, 100]}
         initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
@@ -227,7 +244,7 @@ const PendentesTab = ({ search, tipoFiltro, pendentes, isLoading, isError, isBul
 
 // ─── Tab Equipa ───────────────────────────────────────────────────────────────
 
-const EquipaTab = ({ search, equipa, isLoading, isError }) => {
+const EquipaTab = ({ search, equipa, isLoading, isError, onOpenPonto }) => {
   const results = useSearch(equipa, search);
 
   const columns = useMemo(() => [
@@ -319,10 +336,12 @@ const EquipaTab = ({ search, equipa, isLoading, isError }) => {
       loading={isLoading}
       autoHeight
       density="compact"
+      onRowClick={({ row }) => onOpenPonto({ tb_user_fk: row.pk, colaborador_nome: row.name })}
+      getRowClassName={() => 'rh-row-clicavel'}
       pageSizeOptions={[25, 50, 100]}
       initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
       localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-      sx={{ border: 0 }}
+      sx={{ border: 0, '& .rh-row-clicavel': { cursor: 'pointer' } }}
     />
   );
 };
@@ -445,6 +464,7 @@ const RhGestaoCentralPage = () => {
             equipa={equipa}
             isLoading={loadE}
             isError={errE}
+            onOpenPonto={setPontoDetalhe}
           />
         </Box>
       )}

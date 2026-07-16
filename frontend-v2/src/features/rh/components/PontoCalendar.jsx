@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Stack, Typography, Paper, Chip, Alert, useMediaQuery, Button,
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -39,12 +40,12 @@ function DiaCell({ day, dateStr, eventos, selected, isWeekend, onClick }) {
 
   return (
     <Box
-      onClick={eventos.length ? onClick : undefined}
+      onClick={onClick}
       sx={{
         borderRadius: 1.5,
         p: { xs: 0.5, sm: 0.75 },
         minHeight: { xs: 52, sm: 62 },
-        cursor: eventos.length ? 'pointer' : 'default',
+        cursor: 'pointer',
         border: selected
           ? `2px solid ${COLOR}`
           : '2px solid transparent',
@@ -53,9 +54,7 @@ function DiaCell({ day, dateStr, eventos, selected, isWeekend, onClick }) {
           : isWeekend
           ? alpha(theme.palette.action.hover, 0.5)
           : 'background.paper',
-        '&:hover': eventos.length
-          ? { bgcolor: alpha(COLOR, 0.05), borderColor: alpha(COLOR, 0.4) }
-          : {},
+        '&:hover': { bgcolor: alpha(COLOR, 0.05), borderColor: alpha(COLOR, 0.4) },
         transition: 'all 0.15s',
         display: 'flex',
         flexDirection: 'column',
@@ -162,16 +161,14 @@ function CalendarioGrid({ ano, mes, dayMap, selectedDate, onSelect }) {
 
 // ─── Lista de dias para mobile (xs) ──────────────────────────────────────────
 
-function ListaMobileDias({ dayMap, selectedDate, onSelect }) {
-  const dias = Object.keys(dayMap).sort().reverse();
-
-  if (!dias.length) {
-    return (
-      <Alert severity="info" variant="outlined">
-        Sem registos neste mês.
-      </Alert>
-    );
-  }
+function ListaMobileDias({ ano, mes, dayMap, selectedDate, onSelect }) {
+  // Lista sempre todos os dias do mês, não só os que já têm eventos — um dia
+  // vazio (ex: entrada nunca marcada) tem de continuar seleccionável para
+  // abrir o DiaDePontoModal e lá adicionar o evento em falta.
+  const daysInMonth = new Date(ano, mes, 0).getDate();
+  const dias = Array.from({ length: daysInMonth }, (_, i) =>
+    `${ano}-${String(mes).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`
+  ).sort().reverse();
 
   return (
     <Stack spacing={1}>
@@ -251,12 +248,14 @@ export default function PontoCalendar({
   isSubmetendo,
   onMapOpen,
   userFk,
+  permiteSubmeter = true,
 }) {
   const theme     = useTheme();
   const isMobile  = useMediaQuery(theme.breakpoints.down('sm'));
+  const navigate  = useNavigate();
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalOpen, setModalOpen]       = useState(false);
-  const [diasBloqueio, setDiasBloqueio] = useState(null); // { dias_sem_registo, dias_incompletos }
+  const [diasBloqueio, setDiasBloqueio] = useState(null); // { dias_sem_registo, dias_incompletos, dias_por_justificar }
 
   const handleSubmeter = useCallback(async () => {
     try {
@@ -329,7 +328,7 @@ export default function PontoCalendar({
           )}
         </Stack>
 
-        {!mapaDoMes && registosMes.length > 0 && (
+        {!mapaDoMes && registosMes.length > 0 && permiteSubmeter && (
           isMesFechado(ano, mes) ? (
             <Button
               variant="contained"
@@ -355,6 +354,8 @@ export default function PontoCalendar({
       {/* Calendário (sm+) / Lista (xs) */}
       {isMobile ? (
         <ListaMobileDias
+          ano={ano}
+          mes={mes}
           dayMap={dayMap}
           selectedDate={selectedDate}
           onSelect={handleDaySelect}
@@ -380,7 +381,7 @@ export default function PontoCalendar({
 
       {registosMes.length === 0 && (
         <Alert severity="info" variant="outlined" sx={{ borderRadius: 2 }}>
-          Sem registos neste mês.
+          Sem registos neste mês. Clique num dia para consultar ou adicionar um registo.
         </Alert>
       )}
 
@@ -412,7 +413,7 @@ export default function PontoCalendar({
             </Box>
           )}
           {diasBloqueio?.dias_incompletos?.length > 0 && (
-            <Box>
+            <Box sx={{ mb: diasBloqueio?.dias_por_justificar?.length > 0 ? 2 : 0 }}>
               <Typography variant="subtitle2" fontWeight={700}>
                 Sem Saída registada (dia {diasBloqueio.dias_incompletos.length > 1 ? 's' : ''})
               </Typography>
@@ -421,9 +422,28 @@ export default function PontoCalendar({
               </Typography>
             </Box>
           )}
+          {diasBloqueio?.dias_por_justificar?.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700}>
+                Ausência parcial por justificar (dia {diasBloqueio.dias_por_justificar.length > 1 ? 's' : ''})
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {diasBloqueio.dias_por_justificar.map(d => Number(d.slice(-2))).join(', ')} — saída temporária + regresso já registados, falta escolher o motivo legal em Participações.
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDiasBloqueio(null)}>Fechar</Button>
+          {diasBloqueio?.dias_por_justificar?.length > 0 && (
+            <Button
+              variant="contained"
+              onClick={() => { setDiasBloqueio(null); navigate('/rh/pessoal/participacoes'); }}
+              sx={{ bgcolor: COLOR, '&:hover': { bgcolor: '#be123c' } }}
+            >
+              Justificar agora
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>

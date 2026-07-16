@@ -31,19 +31,24 @@ const WF_TRANSICOES = {
   ],
 };
 
-const ParticipacaoWfDialog = ({ open, onClose, target, onConfirm, isLoading, initialStep }) => {
+const ParticipacaoWfDialog = ({ open, onClose, target, onConfirm, isLoading, initialStep, isAdmin }) => {
   const [step, setStep]     = useState(initialStep ?? 1);
   const [estado, setEstado] = useState('');
   const [notas, setNotas]   = useState('');
 
   useEffect(() => {
     if (open) {
-      setStep(initialStep ?? 1);
+      // Clamp para nível 1 se o utilizador não tiver rh.admin — steps 2/3
+      // não estarão disponíveis nas opções abaixo.
+      setStep(isAdmin ? (initialStep ?? 1) : 1);
       setEstado('');
       setNotas('');
     }
-  }, [open, initialStep]);
+  }, [open, initialStep, isAdmin]);
 
+  // Steps 2/3 exigem rh.admin no backend — não mostrar ao supervisor para
+  // evitar um 403 surpresa ao escolher um nível a que não tem acesso.
+  const stepsVisiveis = isAdmin ? STEPS : STEPS.filter(s => s.value === 1);
   const opcoes = WF_TRANSICOES[step] || [];
 
   const handleConfirm = async () => {
@@ -75,8 +80,9 @@ const ParticipacaoWfDialog = ({ open, onClose, target, onConfirm, isLoading, ini
           <FormControl fullWidth size="small">
             <InputLabel>Nível de aprovação</InputLabel>
             <Select value={step} label="Nível de aprovação"
+              disabled={!isAdmin}
               onChange={e => { setStep(e.target.value); setEstado(''); }}>
-              {STEPS.map(s => (
+              {stepsVisiveis.map(s => (
                 <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
               ))}
             </Select>
