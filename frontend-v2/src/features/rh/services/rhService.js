@@ -110,6 +110,10 @@ export const workflowBulk    = (data) => api.post(`${BASE}/gestao/workflow/bulk`
 export const getFaceStatus      = (userFk) => api.get(`${BASE}/face/status`, { params: { user_fk: userFk } });
 export const enrollFace         = (data)   => api.post(`${BASE}/face/enroll`, data);
 export const verifyFace         = (data)   => api.post(`${BASE}/face/verify`, data);
-export const resetFaceSelf      = ()       => api.delete(`${BASE}/face/reset`);
 export const resetFaceAdmin     = (userFk) => api.delete(`${BASE}/face/${userFk}/reset`);
+export const eraseFaceAdmin     = (userFk) => api.delete(`${BASE}/face/${userFk}/erase`);
 export const getFaceUsersStatus = ()       => api.get(`${BASE}/face/users`);
+
+// Consentimento RGPD (biométrico) — obrigatório antes do primeiro enrollFace()
+export const getFaceConsent      = ()       => api.get(`${BASE}/face/consent`);
+export const registerFaceConsent = (versao) => api.post(`${BASE}/face/consent`, { versao });

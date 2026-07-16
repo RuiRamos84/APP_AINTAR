@@ -3,20 +3,27 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Box, Typography, CircularProgress, Alert, Stack,
   Stepper, Step, StepLabel, LinearProgress, Chip,
+  Checkbox, FormControlLabel,
 } from '@mui/material';
 import {
   FaceRetouchingNatural as FaceIcon,
   CheckCircle as OkIcon,
+  PrivacyTip as PrivacyIcon,
 } from '@mui/icons-material';
 import { toast } from 'sonner';
 import { useFaceApi } from '../hooks/useFaceApi';
-import { enrollFace } from '../services/rhService';
+import { enrollFace, getFaceConsent, registerFaceConsent } from '../services/rhService';
 
 const VIDEO_W = 480;
 const VIDEO_H = 360;
 const FRAMES_TO_CONFIRM = 5;
 const DETECT_INTERVAL   = 200;
 const TOTAL_CAPTURES = 8;
+
+// Subir esta versão sempre que o texto do aviso de privacidade mudar de
+// conteúdo — força novo consentimento explícito no próximo enrolamento,
+// mesmo para quem já tinha consentido a versão anterior.
+const AVISO_PRIVACIDADE_VERSAO = '2026-07';
 
 const INSTRUCTIONS = [
   'Olhe directamente para a câmara',
@@ -46,10 +53,12 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
   const detectingRef = useRef(false); // impede chamadas sobrepostas de extractDescriptor
 
   const [step, setStep]             = useState(0);           // captura actual (0..TOTAL_CAPTURES-1)
-  const [phase, setPhase]           = useState('loading');   // loading | ready | detecting | captured | saving | done | error
+  const [phase, setPhase]           = useState('checking-consent'); // checking-consent | consent | loading | detecting | captured | saving | done | error
   const [progress, setProgress]     = useState(0);
   const [errorMsg, setErrorMsg]     = useState('');
   const [descriptors, setDescriptors] = useState([]);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [consentSaving, setConsentSaving]   = useState(false);
 
   const { ensureModels, extractDescriptor, loadError } = useFaceApi();
 
@@ -84,12 +93,43 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
     return () => { cancelled = true; };
   }, [ensureModels]);
 
+  // ─── Consentimento RGPD (obrigatório antes da câmara abrir) ────────────────
+
+  const checkConsent = useCallback(async () => {
+    setPhase('checking-consent');
+    try {
+      const res = await getFaceConsent();
+      if (res?.consentido) {
+        startCamera();
+      } else {
+        setConsentChecked(false);
+        setPhase('consent');
+      }
+    } catch {
+      // Falha a verificar — por segurança, exige consentimento explícito
+      setConsentChecked(false);
+      setPhase('consent');
+    }
+  }, [startCamera]);
+
+  const handleAcceptConsent = useCallback(async () => {
+    setConsentSaving(true);
+    try {
+      await registerFaceConsent(AVISO_PRIVACIDADE_VERSAO);
+      startCamera();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Erro ao registar consentimento.');
+    } finally {
+      setConsentSaving(false);
+    }
+  }, [startCamera]);
+
   useEffect(() => {
     if (!open) return;
     setStep(0);
     setDescriptors([]);
     setErrorMsg('');
-    startCamera();
+    checkConsent();
     return () => {
       clearInterval(timerRef.current);
       streamRef.current?.getTracks().forEach(t => t.stop());
@@ -178,6 +218,10 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
     : phase === 'captured' ? 'success.light'
     : 'primary.main';
 
+  // Stepper/vídeo só fazem sentido durante a captura propriamente dita —
+  // não durante a verificação de consentimento, o aviso, a gravação ou o fim.
+  const showCaptureUI = phase === 'loading' || phase === 'detecting' || phase === 'captured';
+
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth
       PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
@@ -185,7 +229,7 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
         <Stack direction="row" alignItems="center" spacing={1}>
           <FaceIcon color="primary" />
           <Typography fontWeight={700}>Registo Facial</Typography>
-          {phase !== 'done' && phase !== 'saving' && (
+          {showCaptureUI && (
             <Chip size="small" label={`${Math.min(step + 1, TOTAL_CAPTURES)} / ${TOTAL_CAPTURES}`} color="primary" variant="outlined" sx={{ ml: 'auto' }} />
           )}
         </Stack>
@@ -194,8 +238,55 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
       <DialogContent>
         <Stack alignItems="center" spacing={2} sx={{ pt: 1 }}>
 
+          {phase === 'checking-consent' && (
+            <Stack alignItems="center" spacing={2} sx={{ py: 3 }}>
+              <CircularProgress />
+              <Typography color="text.secondary">A verificar consentimento…</Typography>
+            </Stack>
+          )}
+
+          {phase === 'consent' && (
+            <Stack spacing={2} sx={{ width: '100%' }}>
+              <Alert severity="info" icon={<PrivacyIcon />}>
+                O registo facial usa dados biométricos — uma categoria especial de dados pessoais
+                (RGPD, art.º 9.º). É necessário o seu consentimento explícito antes de continuar.
+              </Alert>
+              <Box component="ul" sx={{ pl: 2.5, m: 0 }}>
+                <Typography component="li" variant="body2" sx={{ mb: 0.75 }}>
+                  <strong>Finalidade:</strong> confirmar a sua identidade no registo de ponto,
+                  prevenindo registos feitos por terceiros em seu nome.
+                </Typography>
+                <Typography component="li" variant="body2" sx={{ mb: 0.75 }}>
+                  <strong>O que é guardado:</strong> um vetor matemático de 128 valores calculado
+                  a partir do seu rosto — nenhuma fotografia é armazenada.
+                </Typography>
+                <Typography component="li" variant="body2" sx={{ mb: 0.75 }}>
+                  <strong>Quem acede:</strong> apenas o sistema de comparação automática do ponto
+                  e o RH, em caso de gestão do registo.
+                </Typography>
+                <Typography component="li" variant="body2" sx={{ mb: 0.75 }}>
+                  <strong>Retenção:</strong> enquanto for colaborador da AINTAR, ou até pedir a
+                  remoção.
+                </Typography>
+                <Typography component="li" variant="body2">
+                  <strong>Os seus direitos:</strong> pode revogar este consentimento e pedir o
+                  apagamento definitivo dos dados a qualquer momento, contactando o RH.
+                </Typography>
+              </Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={consentChecked}
+                    onChange={(e) => setConsentChecked(e.target.checked)}
+                  />
+                }
+                label="Li e consinto o registo biométrico do meu rosto para efeitos de controlo de assiduidade."
+              />
+            </Stack>
+          )}
+
           {/* Steps */}
-          {phase !== 'done' && phase !== 'saving' && (
+          {showCaptureUI && (
             <Stepper activeStep={step} alternativeLabel sx={{ width: '100%' }}>
               {Array.from({ length: TOTAL_CAPTURES }, (_, i) => (
                 <Step key={i} completed={i < step || phase === 'done'}>
@@ -206,7 +297,7 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
           )}
 
           {/* Vídeo */}
-          {phase !== 'done' && phase !== 'saving' && (
+          {showCaptureUI && (
             <Box sx={{
               position: 'relative',
               width: '100%', maxWidth: VIDEO_W,
@@ -294,6 +385,18 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
       <DialogActions sx={{ px: 3, pb: 2 }}>
         {phase === 'done' ? (
           <Button variant="contained" onClick={handleClose}>Fechar</Button>
+        ) : phase === 'consent' ? (
+          <>
+            <Button onClick={handleClose} color="inherit">Cancelar</Button>
+            <Button
+              variant="contained"
+              onClick={handleAcceptConsent}
+              disabled={!consentChecked || consentSaving}
+              startIcon={consentSaving ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
+              Aceito e continuar
+            </Button>
+          </>
         ) : (
           <Button onClick={handleClose} color="inherit"
             disabled={phase === 'saving'}>

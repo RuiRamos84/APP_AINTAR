@@ -21,7 +21,7 @@ import {
   DeleteOutline as ResetIcon,
   AdminPanelSettings as AdminFaceIcon,
 } from '@mui/icons-material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 import { DataGrid } from '@mui/x-data-grid';
 import { ptPT } from '@mui/x-data-grid/locales';
 import { ModulePage } from '@/shared/components/layout/ModulePage';
@@ -31,6 +31,7 @@ import { useAuth } from '@/core/contexts/AuthContext';
 import { usePermissions } from '@/core/contexts/PermissionContext';
 import { usePontoHoje, usePontoMes, usePontoMensal, usePontoActions, useFaceStatus, useResetFaceAdmin, useFaceUsers } from '../hooks/usePonto';
 import { useColaboradorPerfil } from '../hooks/useGestaoColaboradores';
+import { usePendentes } from '../hooks/useGestaoCentral';
 import EstadoBadge from '../components/EstadoBadge';
 import WorkflowDialog from '../components/WorkflowDialog';
 import FaceCaptureModal from '../components/FaceCaptureModal';
@@ -59,7 +60,6 @@ function TabPanel({ children, value, index }) {
 // ─── Tab 1: Registo de hoje ─────────────────────────────────────────────────
 
 const HojeTab = ({ userFk }) => {
-  const theme = useTheme();
   const [gpsLoading, setGpsLoading]   = useState(false);
   const [faceOpen, setFaceOpen]       = useState(false);
   const [enrollOpen, setEnrollOpen]   = useState(false);
@@ -399,7 +399,7 @@ const AprovacaoTab = ({ search, mes, ano }) => {
   const [wfOpen, setWfOpen] = useState(false);
   const [wfTarget, setWfTarget] = useState(null);
 
-  const { mapas, isLoading } = usePontoMensal({ ano, mes });
+  const { mapas, isLoading, isError, refetch } = usePontoMensal({ ano, mes });
   const { workflow, isWorkflow } = usePontoActions(null);
   const results = useSearch(mapas, search);
 
@@ -435,6 +435,15 @@ const AprovacaoTab = ({ search, mes, ano }) => {
       ),
     },
   ], []);
+
+  if (isError) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}
+        action={<Button color="inherit" size="small" onClick={refetch}>Tentar novamente</Button>}>
+        Erro ao carregar mapas mensais.
+      </Alert>
+    );
+  }
 
   return (
     <Box>
@@ -576,16 +585,38 @@ const PontoPage = () => {
 
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
-  const userFk  = user?.user_id;
-  const isAdmin = hasPermission('rh.admin');
+  const userFk      = user?.user_id;
+  const isAdmin     = hasPermission('rh.admin');
+  const canValidate = hasPermission('rh.validate');
+
+  // "Aprovação" só é pedida se houver de facto algo pendente no âmbito de
+  // quem está a ver (equipa directa para supervisor, tudo para admin — ver
+  // get_pendentes) — não basta ter a permissão rh.validate, senão o tab
+  // aparece vazio para supervisores sem nada por aprovar no momento.
+  const { pendentes: pontoPendentes } = usePendentes(
+    { tipo: 'ponto' },
+    { enabled: canValidate },
+  );
+  const temAprovacoesPendentes = canValidate && pontoPendentes.length > 0;
 
   const anos = [now.getFullYear() - 1, now.getFullYear()];
+
+  // Tabs visíveis dependem de permissões/estado — chave semântica em vez de
+  // índice fixo, para "Aprovação" e "Gestão Facial" nunca desalinharem entre
+  // si quando uma delas fica oculta.
+  const TABS = [
+    { key: 'hoje' },
+    { key: 'historico' },
+    ...(temAprovacoesPendentes ? [{ key: 'aprovacao' }] : []),
+    ...(isAdmin ? [{ key: 'facial' }] : []),
+  ];
+  const activeKey = TABS[tab]?.key ?? 'hoje';
 
   const handleTabChange = (_, v) => { setTab(v); setSearch(''); };
 
   // Controlos do lado direito da barra de tabs
-  const showSearch  = tab === 2 || tab === 3; // Aprovação e Gestão Facial
-  const showMesAno  = tab === 1 || tab === 2;
+  const showSearch  = activeKey === 'aprovacao' || activeKey === 'facial';
+  const showMesAno  = activeKey === 'historico' || activeKey === 'aprovacao';
 
   return (
     <ModulePage
@@ -604,7 +635,7 @@ const PontoPage = () => {
         <Tabs value={tab} onChange={handleTabChange} sx={{ flex: '0 0 auto' }}>
           <Tab label="Hoje" />
           <Tab label="Histórico" />
-          <Tab label="Aprovação" />
+          {temAprovacoesPendentes && <Tab label="Aprovação" />}
           {isAdmin && (
             <Tab
               label="Gestão Facial"
@@ -642,23 +673,25 @@ const PontoPage = () => {
         )}
       </Stack>
 
-      <TabPanel value={tab} index={0}>
+      <TabPanel value={activeKey} index="hoje">
         {userFk
           ? <HojeTab userFk={userFk} />
           : <Alert severity="warning">Não foi possível identificar o utilizador.</Alert>
         }
       </TabPanel>
-      <TabPanel value={tab} index={1}>
+      <TabPanel value={activeKey} index="historico">
         {userFk
           ? <HistoricoTab userFk={userFk} mes={mes} ano={ano} />
           : <Alert severity="warning">Não foi possível identificar o utilizador.</Alert>
         }
       </TabPanel>
-      <TabPanel value={tab} index={2}>
-        <AprovacaoTab search={search} mes={mes} ano={ano} />
-      </TabPanel>
+      {temAprovacoesPendentes && (
+        <TabPanel value={activeKey} index="aprovacao">
+          <AprovacaoTab search={search} mes={mes} ano={ano} />
+        </TabPanel>
+      )}
       {isAdmin && (
-        <TabPanel value={tab} index={3}>
+        <TabPanel value={activeKey} index="facial">
           <GestaoFacialTab search={search} />
         </TabPanel>
       )}

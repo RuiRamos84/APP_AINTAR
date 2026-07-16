@@ -5,7 +5,7 @@ import notification from '@/core/services/notification';
 import {
   getPonto, registarPontoEvento, submeterPontoMensal,
   getPontoMensal, corrigirPonto, adicionarPontoAdmin, getFaceStatus,
-  resetFaceSelf, resetFaceAdmin, getFaceUsersStatus,
+  resetFaceAdmin, getFaceUsersStatus,
   executarWorkflow,
 } from '../services/rhService';
 
@@ -56,6 +56,8 @@ export const usePontoMensal = (params = {}) => {
   return {
     mapas: Array.isArray(query.data) ? query.data.map(r => ({ ...r, id: r.pk })) : [],
     isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
   };
 };
 
@@ -73,18 +75,6 @@ export const useFaceStatus = (userFk) => {
     isLoading: query.isLoading,
     refetch: query.refetch,
   };
-};
-
-export const useResetFaceSelf = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: resetFaceSelf,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['rh-face-status'] });
-      notification.success('Rosto removido. Faça um novo registo facial.');
-    },
-    onError: (e) => notification.apiError(e, 'Erro ao remover rosto'),
-  });
 };
 
 export const useResetFaceAdmin = () => {
@@ -131,9 +121,9 @@ export const usePontoActions = (userFk) => {
       if (data?.participacao_criada) {
         qc.invalidateQueries({ queryKey: ['rh-participacoes'] });
         toast.success('Regresso registado', {
-          description: 'Ausência parcial criada automaticamente. Adicione a justificação legal.',
+          description: 'Ausência parcial criada automaticamente. Escolha o motivo legal antes de submeter o mapa mensal — sem isso, a submissão fica bloqueada.',
           action: { label: 'Justificar agora', onClick: () => navigate('/rh/pessoal/participacoes') },
-          duration: 8000,
+          duration: 10000,
         });
       } else {
         notification.success('Ponto registado');
