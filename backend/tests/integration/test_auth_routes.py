@@ -376,30 +376,42 @@ class TestRefreshEndpoint:
 # ─── Logout + blacklist ───────────────────────────────────────────────────────
 
 class TestLogoutBlacklist:
-    """Verifica que o logout revoga o token e impede reutilização."""
+    """
+    Verifica que o logout revoga o token e impede reutilização.
 
-    def test_logout_adiciona_jti_a_blacklist(self, client, auth_headers, app):
-        """
-        Após logout com JWT válido, o JTI do token deve constar na blacklist.
-        Garante que o token fica inválido para requests futuros.
-        """
-        from app import blacklist
+    A blacklist deixou de ser um set() em memória em `app/__init__.py` —
+    passou a Redis (`app/utils/jwt_blacklist.py`, add_token_to_blacklist/
+    is_token_revoked), para sobreviver a restarts e ser partilhada entre
+    workers/processos em produção (eventlet). Os testes mockam a fronteira
+    Redis em vez de inspeccionar estado partilhado em memória.
+    """
 
-        with patch("app.routes.auth_routes.logout_user", return_value=True):
+    def test_logout_adiciona_jti_a_blacklist(self, client, auth_headers, jwt_user):
+        """
+        Após logout com JWT válido, add_token_to_blacklist é chamado com o
+        jti do token actual — é essa chamada que revoga o token no Redis.
+        """
+        from flask_jwt_extended import decode_token
+        jti_esperado = decode_token(jwt_user)["jti"]
+
+        with patch("app.routes.auth_routes.logout_user", return_value=True), \
+             patch("app.routes.auth_routes.add_token_to_blacklist") as mock_blacklist:
             resp = client.post("/api/v1/auth/logout", headers=auth_headers)
 
         assert resp.status_code == 200
-        # Pelo menos um JTI foi adicionado à blacklist durante este request
-        assert len(blacklist) >= 1
+        mock_blacklist.assert_called_once()
+        assert mock_blacklist.call_args[0][0] == jti_esperado
 
     def test_token_na_blacklist_retorna_401_em_endpoint_protegido(self, client, app):
         """
-        Token cujo JTI está na blacklist → 401 em qualquer endpoint protegido.
-        Simula reutilização de token após logout.
+        Token cujo JTI está revogado (is_token_revoked → True) → 401 em
+        qualquer endpoint protegido. Simula reutilização de token após
+        logout, sem depender de uma ligação Redis real no ambiente de teste
+        — mocka o loader (`check_if_token_in_blacklist`, app/__init__.py)
+        no ponto onde importa o valor em cada chamada.
         """
-        from flask_jwt_extended import create_access_token, decode_token as jwt_decode
+        from flask_jwt_extended import create_access_token
         from datetime import datetime, timezone
-        from app import blacklist
 
         token = create_access_token(
             identity="session_blacklist_test",
@@ -415,16 +427,11 @@ class TestLogoutBlacklist:
             }
         )
 
-        decoded = jwt_decode(token)
-        jti = decoded["jti"]
-        blacklist.add(jti)
-
-        try:
+        with patch("app.utils.jwt_blacklist.is_token_revoked", return_value=True):
             resp = client.get("/api/v1/auth/me",
                               headers={"Authorization": f"Bearer {token}"})
-            assert resp.status_code == 401
-        finally:
-            blacklist.discard(jti)
+
+        assert resp.status_code == 401
 
 
 # ─── /update_dark_mode — happy path ──────────────────────────────────────────

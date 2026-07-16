@@ -68,32 +68,35 @@ class TestListCachedActivities:
 
 class TestNotificationClean:
     """
-    Bug identificado: dentro de 'with db_session_manager() as session:', a função
-    usa 'db.session' em vez de 'session', abrindo uma segunda sessão não gerida.
+    Bug original: fsf_client_notificationclean (então em auth_service.py)
+    usava 'db.session' em vez do 'session' do context manager, abrindo uma
+    segunda sessão não gerida. Essa função foi entretanto removida de
+    auth_service.py — a lógica de notificações de documentos vive hoje em
+    notification_service.py::NotificationService.mark_notification_as_read,
+    que já usa exclusivamente o session do context manager (o módulo nem
+    importa 'db'), pelo que o bug deixou de ser estruturalmente possível.
+    Este teste segue a função actual e fixa o mesmo contrato.
     """
 
-    def test_notificationclean_usa_session_do_context_manager(self):
+    def test_mark_notification_as_read_usa_session_do_context_manager(self):
         """
-        Cenário: chamada a fsf_client_notificationclean.
-        Esperado: usa o objeto 'session' do context manager, não db.session.
-        Bug atual: usa db.session — pool leak potencial.
+        Cenário: chamada a NotificationService.mark_notification_as_read.
+        Esperado: executa via o 'session' do context manager, com o
+        document_id certo, e faz commit.
         """
         mock_session = MagicMock()
-        mock_session.execute.return_value.fetchone.return_value = [1]
 
         mock_context = MagicMock()
         mock_context.__enter__ = MagicMock(return_value=mock_session)
         mock_context.__exit__ = MagicMock(return_value=False)
 
-        with patch("app.services.auth_service.db_session_manager", return_value=mock_context), \
-             patch("app.services.auth_service.db") as mock_db:
+        with patch("app.services.notification_service.db_session_manager", return_value=mock_context):
+            from app.services.notification_service import NotificationService
+            NotificationService().mark_notification_as_read(document_id=42, session_id="session_abc")
 
-            from app.services.auth_service import fsf_client_notificationclean
-            fsf_client_notificationclean(user_id=42)
-
-        # db.session.execute NÃO deve ter sido chamado — apenas session.execute
-        mock_db.session.execute.assert_not_called()
         mock_session.execute.assert_called_once()
+        assert mock_session.execute.call_args[0][1] == {"doc_id": 42}
+        mock_session.commit.assert_called_once()
 
 
 # ─── Bug #4: active_users → Redis (já corrigido) ─────────────────────────────
