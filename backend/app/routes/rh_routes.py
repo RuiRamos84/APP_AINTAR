@@ -1,13 +1,14 @@
 from flask import Blueprint, request, jsonify
 from datetime import date
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from app.utils.permissions_decorator import require_permission, require_any_permission
+from app.utils.permissions_decorator import require_permission
 from ..utils.utils import token_required, set_session, db_session_manager
 from app.utils.error_handler import api_error_handler
 from app.utils.logger import get_logger
 from sqlalchemy import text
 from ..services.rh_face_service import (
     get_face_status, enroll_face, verify_face, reset_face_templates, get_face_users_status,
+    get_consent_status, register_consent, erase_face_data,
 )
 from ..services.rh_gestao_service import (
     get_pendentes, get_equipa, workflow_bulk,
@@ -118,7 +119,7 @@ def colaborador_detail_route(pk):
 @api_error_handler
 def saldo_ferias_route(pk):
     current_user = get_jwt_identity()
-    return get_saldo_ferias(pk, current_user)
+    return get_saldo_ferias(pk, current_user, ano=request.args.get('ano', type=int))
 
 
 # ---------------------------------------------------------------------------
@@ -193,10 +194,13 @@ def ponto_mensal_route():
 @bp.route('/rh/ponto/<int:pk>/corrigir', methods=['PUT'])
 @jwt_required()
 @token_required
-@require_any_permission('rh.admin', 'rh.validate')
+@require_permission('rh.edit')
 @set_session
 @api_error_handler
 def ponto_corrigir_route(pk):
+    # rh.edit chega: o serviço distingue auto-correcao (o próprio, nota
+    # obrigatória) de correcao em nome de outrem (exige rh.admin/rh.validate
+    # + equipa, validado dentro de corrigir_ponto).
     current_user = get_jwt_identity()
     return corrigir_ponto(pk, request.get_json(), current_user)
 
@@ -204,10 +208,11 @@ def ponto_corrigir_route(pk):
 @bp.route('/rh/ponto/admin/evento', methods=['POST'])
 @jwt_required()
 @token_required
-@require_any_permission('rh.admin', 'rh.validate')
+@require_permission('rh.edit')
 @set_session
 @api_error_handler
 def ponto_admin_evento_route():
+    # Mesma lógica de ponto_corrigir_route — ver adicionar_ponto_admin.
     current_user = get_jwt_identity()
     return adicionar_ponto_admin(request.get_json(), current_user)
 
@@ -692,6 +697,31 @@ def face_status_route():
     return get_face_status(user_fk, current_user)
 
 
+@bp.route('/rh/face/consent', methods=['GET'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@api_error_handler
+def face_consent_status_route():
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_fk = claims.get('user_id')
+    return get_consent_status(user_fk, current_user)
+
+
+@bp.route('/rh/face/consent', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@set_session
+@api_error_handler
+def face_consent_register_route():
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_fk = claims.get('user_id')
+    return register_consent(request.get_json(), user_fk, current_user, ip=request.remote_addr)
+
+
 @bp.route('/rh/face/enroll', methods=['POST'])
 @jwt_required()
 @token_required
@@ -729,7 +759,21 @@ def face_reset_route(user_fk):
     current_user = get_jwt_identity()
     claims = get_jwt()
     requester_fk = claims.get('user_id')
-    return reset_face_templates(user_fk, current_user, requester_fk=requester_fk)
+    return reset_face_templates(user_fk, current_user, requester_fk=requester_fk, ip=request.remote_addr)
+
+
+@bp.route('/rh/face/<int:user_fk>/erase', methods=['DELETE'])
+@jwt_required()
+@token_required
+@require_permission('rh.admin')
+@set_session
+@api_error_handler
+def face_erase_route(user_fk):
+    """Apagamento físico dos dados biométricos (RGPD art.17) — offboarding ou pedido de titular."""
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+    requester_fk = claims.get('user_id')
+    return erase_face_data(user_fk, current_user, requester_fk=requester_fk, ip=request.remote_addr)
 
 
 @bp.route('/rh/face/users', methods=['GET'])
@@ -964,4 +1008,4 @@ def gestao_equipa_route():
 def gestao_workflow_bulk_route():
     """Acção de workflow em massa: aprova/rejeita múltiplos itens de uma vez."""
     current_user = get_jwt_identity()
-    return workflow_bulk(request.get_json(), current_user)
+    return workflow_bulk(request.get_json(), current_user, ip=request.remote_addr)

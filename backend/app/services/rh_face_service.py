@@ -4,6 +4,7 @@ from sqlalchemy import text
 from app.utils.error_handler import api_error_handler
 from ..utils.utils import db_session_manager
 from app.utils.logger import get_logger
+from . import audit_service
 
 logger = get_logger(__name__)
 
@@ -11,6 +12,9 @@ logger = get_logger(__name__)
 FACE_THRESHOLD = 0.50
 # Mínimo de templates para enrollment válido
 MIN_TEMPLATES = 3
+# Versão do texto de consentimento — subir quando o aviso de privacidade mudar
+# de conteúdo, para forçar novo consentimento explícito no próximo enrolamento
+CONSENT_TIPO = 'biometrico'
 
 
 def _euclidean(a: list, b: list) -> float:
@@ -55,6 +59,33 @@ def enroll_face(data: dict, user_fk: int, current_user: str):
             return jsonify({'error': 'Descritor facial inválido (esperados 128 valores).'}), 400
 
     with db_session_manager(current_user) as session:
+        # RGPD art.9 — dado biométrico é categoria especial: sem consentimento
+        # explícito activo, não há enrolamento, mesmo que o pedido chegue por
+        # fora da UI (curl/DevTools). O ecrã de consentimento é só a UX;
+        # esta guarda é que garante a conformidade.
+        tem_consentimento = session.execute(text("""
+            SELECT COUNT(*) FROM tb_rh_consentimento
+            WHERE tb_user_fk = :user_fk AND tipo = :tipo
+              AND consentido = TRUE AND revogado_em IS NULL
+        """), {'user_fk': user_fk, 'tipo': CONSENT_TIPO}).scalar() or 0
+        if tem_consentimento == 0:
+            return jsonify({
+                'error': 'É necessário consentimento explícito para o registo biométrico. Aceite o aviso de privacidade primeiro.',
+            }), 403
+
+        # Impede re-enrolamento livre: se já existe um registo activo, só um
+        # reset de admin (DELETE /rh/face/<user_fk>/reset) pode reabrir o
+        # enrolamento — caso contrário qualquer pessoa junto ao dispositivo
+        # substituiria o rosto registado sem intervenção do RH (buddy punching).
+        ja_enrolado = session.execute(text("""
+            SELECT COUNT(*) FROM tb_rh_face_template
+            WHERE tb_user_fk = :user_fk AND ativo = TRUE
+        """), {'user_fk': user_fk}).scalar() or 0
+        if ja_enrolado > 0:
+            return jsonify({
+                'error': 'Já existe um registo facial activo. Contacte o RH para efectuar reset antes de um novo registo.',
+            }), 409
+
         # Desactivar templates anteriores
         session.execute(text("""
             UPDATE tb_rh_face_template SET ativo = FALSE
@@ -71,6 +102,59 @@ def enroll_face(data: dict, user_fk: int, current_user: str):
 
     logger.info(f'Face enrollment: user={user_fk}, {len(descriptors)} templates guardados')
     return jsonify({'message': 'Rosto registado com sucesso.', 'template_count': len(descriptors)}), 201
+
+
+# ---------------------------------------------------------------------------
+# Consentimento RGPD (art.9 — dado biométrico é categoria especial)
+# ---------------------------------------------------------------------------
+
+@api_error_handler
+def get_consent_status(user_fk: int, current_user: str):
+    """Devolve o consentimento activo (não revogado) do utilizador, se existir."""
+    with db_session_manager(current_user) as session:
+        row = session.execute(text("""
+            SELECT versao_texto, ts_consentimento FROM tb_rh_consentimento
+            WHERE tb_user_fk = :user_fk AND tipo = :tipo
+              AND consentido = TRUE AND revogado_em IS NULL
+            ORDER BY ts_consentimento DESC LIMIT 1
+        """), {'user_fk': user_fk, 'tipo': CONSENT_TIPO}).fetchone()
+
+    if not row:
+        return jsonify({'consentido': False, 'versao': None, 'ts_consentimento': None}), 200
+
+    return jsonify({
+        'consentido': True,
+        'versao': row.versao_texto,
+        'ts_consentimento': row.ts_consentimento.isoformat(),
+    }), 200
+
+
+@api_error_handler
+def register_consent(data: dict, user_fk: int, current_user: str, ip: str = None):
+    """
+    Regista consentimento explícito para o registo biométrico.
+    data = { "versao": "2026-07" }
+    """
+    versao = data.get('versao')
+    if not versao:
+        return jsonify({'error': 'Versão do aviso de privacidade em falta.'}), 400
+
+    with db_session_manager(current_user) as session:
+        result = session.execute(text("""
+            SELECT fbo_rh_consentimento(0, :user_fk, :tipo, :versao, TRUE, :ip)
+        """), {'user_fk': user_fk, 'tipo': CONSENT_TIPO, 'versao': versao, 'ip': ip}).scalar()
+
+        if result and result.startswith('<error>'):
+            return jsonify({'error': result.replace('<error>', '').replace('</error>', '')}), 400
+
+        audit_service.record(
+            session, hist_client=user_fk,
+            action='rh.consent.registar', resource='consentimento', resource_id=user_fk,
+            meta={'versao': versao}, ip=ip,
+        )
+
+    logger.info(f'Consentimento biométrico registado: user={user_fk}, versao={versao}')
+    return jsonify({'message': 'Consentimento registado.'}), 201
 
 
 # ---------------------------------------------------------------------------
@@ -113,16 +197,53 @@ def verify_face(data: dict, user_fk: int, current_user: str):
 # ---------------------------------------------------------------------------
 
 @api_error_handler
-def reset_face_templates(user_fk: int, current_user: str, requester_fk: int = None):
+def reset_face_templates(user_fk: int, current_user: str, requester_fk: int = None, ip: str = None):
     with db_session_manager(current_user) as session:
         session.execute(text("""
             UPDATE tb_rh_face_template SET ativo = FALSE
             WHERE tb_user_fk = :user_fk AND ativo = TRUE
         """), {'user_fk': user_fk})
 
+        if requester_fk and requester_fk != user_fk:
+            audit_service.record(
+                session, hist_client=requester_fk,
+                action='rh.face.reset', resource='face_template', resource_id=user_fk, ip=ip,
+            )
+
     who = f'por admin user={requester_fk}' if requester_fk and requester_fk != user_fk else 'pelo próprio'
     logger.info(f'Face templates reset: user={user_fk} ({who})')
     return jsonify({'message': 'Templates faciais removidos.'}), 200
+
+
+# ---------------------------------------------------------------------------
+# Apagamento físico (direito ao apagamento — RGPD art.17)
+# ---------------------------------------------------------------------------
+
+@api_error_handler
+def erase_face_data(user_fk: int, current_user: str, requester_fk: int = None, ip: str = None):
+    """
+    Apaga fisicamente os templates faciais (DELETE, não soft-delete) e revoga
+    o consentimento activo. Distinto de reset_face_templates: o reset é gestão
+    operacional (permite reabrir o enrolamento); isto é o direito ao apagamento
+    — usado em offboarding ou pedido de titular de dados.
+    """
+    with db_session_manager(current_user) as session:
+        deleted = session.execute(text("""
+            DELETE FROM tb_rh_face_template WHERE tb_user_fk = :user_fk
+        """), {'user_fk': user_fk}).rowcount
+
+        session.execute(text("""
+            SELECT fbo_rh_consentimento(1, :user_fk, :tipo)
+        """), {'user_fk': user_fk, 'tipo': CONSENT_TIPO})
+
+        audit_service.record(
+            session, hist_client=requester_fk,
+            action='rh.face.erase', resource='face_template', resource_id=user_fk,
+            meta={'templates_apagados': deleted}, ip=ip,
+        )
+
+    logger.info(f'Dados biométricos apagados fisicamente: user={user_fk}, {deleted} templates, por admin={requester_fk}')
+    return jsonify({'message': 'Dados biométricos apagados definitivamente.', 'templates_apagados': deleted}), 200
 
 
 # ---------------------------------------------------------------------------

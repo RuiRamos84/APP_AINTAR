@@ -88,10 +88,10 @@ def admin_action(key):
 @set_session
 @api_error_handler
 def activity_logs():
-    """Lista logs de atividade com filtros opcionais."""
+    """Lista logs de atividade com filtros opcionais e paginação server-side."""
     filters = {
         k: v for k, v in request.args.items()
-        if k in ('action', 'date_from', 'date_to', 'user_id')
+        if k in ('action', 'date_from', 'date_to', 'user_id', 'page', 'per_page')
     }
     return get_activity_logs(filters, get_jwt_identity())
 

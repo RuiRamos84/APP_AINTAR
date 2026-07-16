@@ -4,7 +4,7 @@ import os
 from flask import jsonify, request, current_app, send_file
 from sqlalchemy import text
 from typing import Optional
-from datetime import date, time, datetime, timedelta
+from datetime import date, datetime, timedelta
 from pydantic import BaseModel, Field
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import get_jwt
@@ -12,7 +12,9 @@ from ..utils.utils import format_message, db_session_manager
 from app.utils.error_handler import api_error_handler, APIError, ResourceNotFoundError
 from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
-from .rh_gestao_service import _is_rh_admin, _is_full_rh_admin, _is_direct_superior, _assert_pode_validar
+from app.utils.serializers import serialize_rows
+from .rh_gestao_service import _is_full_rh_admin, _is_direct_superior, _assert_pode_validar
+from . import audit_service
 
 _FALTA_ALLOWED_EXTS = {'.pdf', '.jpg', '.jpeg', '.png', '.docx', '.doc'}
 _FALTA_MAX_FILES    = 10
@@ -204,8 +206,9 @@ def _caller_pk() -> int:
 def _dias_problematicos_mes(session, user_fk: int, ano: int, mes: int) -> dict:
     """Dias úteis do mês (segundo o horário activo) sem qualquer registo de
     ponto ou sem Saída registada — excluindo feriados, férias aprovadas e
-    faltas não rejeitadas. Usado para bloquear a submissão do mapa mensal
-    enquanto houver dias por corrigir."""
+    faltas não rejeitadas — mais dias com uma participação parcial ainda sem
+    motivo legal escolhido. Usado para bloquear a submissão do mapa mensal
+    enquanto houver dias por corrigir/justificar."""
     primeiro = date(ano, mes, 1)
     ultimo   = date(ano, mes, calendar.monthrange(ano, mes)[1])
 
@@ -237,6 +240,38 @@ def _dias_problematicos_mes(session, user_fk: int, ano: int, mes: int) -> dict:
           AND data BETWEEN :ini AND :fim
     """), {'user_fk': user_fk, 'ini': primeiro, 'fim': ultimo}).fetchall()}
 
+    # Participações de dia(s) completo(s) já comunicadas (mesmo pendentes de
+    # validação) também justificam a ausência de ponto — só as rejeitadas
+    # (4, 7) deixam de contar. Ausências parciais não excluem o dia: o
+    # colaborador continua a precisar de picar entrada/saída à sua volta.
+    dias_participacao = set()
+    for data_inicio, data_fim in session.execute(text("""
+        SELECT data_inicio, data_fim FROM tb_rh_participacao
+        WHERE tb_user_fk = :user_fk AND tipo = 'dia' AND ts_estado_fk NOT IN (4, 7)
+          AND data_inicio <= :fim AND data_fim >= :ini
+    """), {'user_fk': user_fk, 'ini': primeiro, 'fim': ultimo}).fetchall():
+        d = max(data_inicio, primeiro)
+        while d <= min(data_fim, ultimo):
+            dias_participacao.add(d)
+            d += timedelta(days=1)
+
+    # Participações parciais (Saída Temporária + Regresso) ainda sem motivo
+    # legal escolhido — a participação é auto-criada ao picar o Regresso
+    # (ver registar_ponto_evento) mas fica sempre sem motivo até o
+    # colaborador a editar; sem isto, uma ausência parcial nunca justificada
+    # passava despercebida e o mapa mensal submetia-se na mesma.
+    dias_por_justificar = set()
+    for data_inicio, data_fim in session.execute(text("""
+        SELECT data_inicio, data_fim FROM tb_rh_participacao
+        WHERE tb_user_fk = :user_fk AND tipo = 'parcial' AND ts_rh_falta_motivo_fk IS NULL
+          AND ts_estado_fk NOT IN (4, 7)
+          AND data_inicio <= :fim AND data_fim >= :ini
+    """), {'user_fk': user_fk, 'ini': primeiro, 'fim': ultimo}).fetchall():
+        d = max(data_inicio, primeiro)
+        while d <= min(data_fim, ultimo):
+            dias_por_justificar.add(d)
+            d += timedelta(days=1)
+
     registos = {
         r['data']: set(r['eventos'] or [])
         for r in session.execute(text("""
@@ -247,18 +282,28 @@ def _dias_problematicos_mes(session, user_fk: int, ano: int, mes: int) -> dict:
         """), {'user_fk': user_fk, 'ini': primeiro, 'fim': ultimo}).mappings().all()
     }
 
-    sem_registo, incompletos = [], []
+    sem_registo, incompletos, por_justificar = [], [], []
     d = primeiro
     while d <= ultimo:
-        if d.isoweekday() in dias_semana and d not in feriados and d not in dias_ferias and d not in dias_falta:
+        if (d.isoweekday() in dias_semana and d not in feriados and d not in dias_ferias
+                and d not in dias_falta and d not in dias_participacao):
             eventos = registos.get(d)
             if not eventos:
                 sem_registo.append(d.isoformat())
             elif 4 not in eventos:
                 incompletos.append(d.isoformat())
+        # Independente de dia útil/feriado — se há uma participação parcial
+        # por justificar nesse dia, bloqueia sempre (ela só existe porque o
+        # colaborador de facto picou Saída Temporária + Regresso nesse dia).
+        if d in dias_por_justificar:
+            por_justificar.append(d.isoformat())
         d += timedelta(days=1)
 
-    return {'dias_sem_registo': sem_registo, 'dias_incompletos': incompletos}
+    return {
+        'dias_sem_registo': sem_registo,
+        'dias_incompletos': incompletos,
+        'dias_por_justificar': por_justificar,
+    }
 
 
 def _mes_pendente_ou_nao_submetido(session, user_fk: int, data_evento) -> bool:
@@ -272,17 +317,6 @@ def _mes_pendente_ou_nao_submetido(session, user_fk: int, data_evento) -> bool:
     return estado is None or estado == 1
 
 
-def _rows_to_list(rows):
-    out = []
-    for r in rows:
-        d = dict(r)
-        for k, v in d.items():
-            if isinstance(v, (date, datetime, time)):
-                d[k] = v.isoformat()
-        out.append(d)
-    return out
-
-
 # ---------------------------------------------------------------------------
 # Lookups
 # ---------------------------------------------------------------------------
@@ -291,7 +325,7 @@ def _rows_to_list(rows):
 def get_lookups(current_user: str):
     with db_session_manager(current_user) as session:
         def fetch(q):
-            return _rows_to_list(session.execute(text(q)).mappings().all())
+            return serialize_rows(session.execute(text(q)).mappings().all())
 
         return jsonify({
             'tipos_jornada':    fetch('SELECT * FROM vbl_rh_tipo_jornada'),
@@ -310,15 +344,26 @@ def get_lookups(current_user: str):
 @api_error_handler
 def get_colaboradores(current_user: str):
     with db_session_manager(current_user) as session:
+        # Lista com perfil RH completo de todos — só rh.admin (mesma razão de
+        # get_colaborador). Para um dropdown de nomes usar
+        # GET /rh/colaboradores/lista, que já devolve só pk+name.
+        if not _is_full_rh_admin(session):
+            raise APIError('Sem permissão para listar os perfis de RH dos colaboradores', 403)
         rows = session.execute(
             text('SELECT * FROM vbl_rh_colaborador ORDER BY name')
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
 def get_colaborador(pk: int, current_user: str):
     with db_session_manager(current_user) as session:
+        # Perfil RH completo (inclui notas_rh internas, tipo_contrato, etc.)
+        # — mesma regra de Documentos: só o próprio ou rh.admin, nem o
+        # superior directo tem acesso (para isso já tem GET /rh/gestao/equipa,
+        # com o resumo operacional que precisa, sem os dados sensíveis).
+        if not _is_full_rh_admin(session) and pk != _caller_pk():
+            raise APIError('Sem permissão para ver o perfil deste colaborador', 403)
         row = session.execute(
             text('SELECT * FROM vbl_rh_colaborador WHERE pk = :pk'),
             {'pk': pk}
@@ -331,27 +376,59 @@ def get_colaborador(pk: int, current_user: str):
 
 
 @api_error_handler
-def get_saldo_ferias(pk: int, current_user: str):
+def get_saldo_ferias(pk: int, current_user: str, ano: Optional[int] = None):
+    # vbl_rh_saldo_ferias está fixa a EXTRACT(YEAR FROM NOW()) — não é
+    # filtrável por ?ano=. Para respeitar o parâmetro, replica-se aqui a
+    # mesma fórmula da view (20_transitados.sql), parametrizada pelo ano
+    # pedido em vez de NOW().
+    ano = ano or date.today().year
     with db_session_manager(current_user) as session:
-        row = session.execute(
-            text('SELECT * FROM vbl_rh_saldo_ferias WHERE tb_user_fk = :pk'),
-            {'pk': pk}
-        ).mappings().first()
+        if not _is_full_rh_admin(session) and pk != _caller_pk():
+            raise APIError('Sem permissão para ver o saldo de férias deste colaborador', 403)
+        row = session.execute(text("""
+            SELECT
+                c.pk                               AS tb_user_fk,
+                c.name                              AS colaborador_nome,
+                :ano::INT                           AS ano,
+                COALESCE(cfg.dias_ferias_total,
+                    fn_rh_calcular_ferias_ano(c.pk, :ano), 22) AS dias_ano_corrente,
+                COALESCE(cfg.dias_transitados, 0)   AS dias_transitados,
+                COALESCE(cfg.dias_transitados_gozados, 0) AS dias_transitados_gozados,
+                cfg.data_limite_transitados,
+                GREATEST(
+                    COALESCE(cfg.dias_transitados, 0)
+                    - COALESCE(cfg.dias_transitados_gozados, 0),
+                    0
+                )                                    AS dias_transitados_disponiveis,
+                COALESCE(cfg.dias_ferias_total,
+                    fn_rh_calcular_ferias_ano(c.pk, :ano), 22)
+                + COALESCE(cfg.dias_transitados, 0)  AS dias_total,
+                COALESCE(cfg.dias_ferias_gozados, 0) AS dias_gozados,
+                COALESCE((
+                    SELECT SUM(dias_uteis) FROM tb_rh_ferias
+                    WHERE tb_user_fk = c.pk AND EXTRACT(YEAR FROM data_inicio) = :ano
+                      AND ts_estado_fk IN (1, 2) AND tt_tipo_fk = 1
+                ), 0)                                AS dias_pendentes,
+                GREATEST(
+                    COALESCE(cfg.dias_ferias_total,
+                        fn_rh_calcular_ferias_ano(c.pk, :ano), 22)
+                    + COALESCE(cfg.dias_transitados, 0)
+                    - COALESCE(cfg.dias_ferias_gozados, 0)
+                    - COALESCE(cfg.dias_transitados_gozados, 0)
+                    - COALESCE((
+                        SELECT SUM(dias_uteis) FROM tb_rh_ferias
+                        WHERE tb_user_fk = c.pk AND EXTRACT(YEAR FROM data_inicio) = :ano
+                          AND ts_estado_fk IN (1, 2) AND tt_tipo_fk = 1
+                    ), 0),
+                    0
+                )                                    AS dias_disponiveis
+            FROM ts_client c
+            LEFT JOIN ts_rh_config cfg ON cfg.tb_user_fk = c.pk AND cfg.ano = :ano
+            WHERE c.pk = :pk
+        """), {'pk': pk, 'ano': ano}).mappings().first()
+
         if not row:
-            year = date.today().year
-            dias = session.execute(
-                text('SELECT fn_rh_calcular_ferias_ano(:pk, :ano) AS dias'),
-                {'pk': pk, 'ano': year}
-            ).scalar() or 22
-            return jsonify({
-                'tb_user_fk': pk,
-                'colaborador_nome': None,
-                'ano': year,
-                'dias_total': dias,
-                'dias_gozados': 0,
-                'dias_pendentes': 0,
-                'dias_disponiveis': dias,
-            }), 200
+            raise ResourceNotFoundError('Colaborador', pk)
         return jsonify(dict(row)), 200
 
 
@@ -459,6 +536,9 @@ def check_entrada(user_fk: int, current_user: str):
 def registar_ponto_evento(data: dict, current_user: str):
     from flask import current_app
     payload = PontoEventoCreate.model_validate(data)
+    # O ponto é sempre registado em nome de quem chama — nunca confiar no
+    # user_fk do payload (evita registar/spoofar presença de outra pessoa).
+    payload.user_fk = _caller_pk()
     with db_session_manager(current_user) as session:
         result = session.execute(text("""
             SELECT fbo_rh_ponto_evento(
@@ -576,6 +656,16 @@ def registar_ponto_evento(data: dict, current_user: str):
 @api_error_handler
 def get_ponto(current_user: str, user_fk: Optional[int], data_inicio: Optional[str], data_fim: Optional[str]):
     with db_session_manager(current_user) as session:
+        # Nenhuma vbl_rh_ponto* filtra por sessão — a restrição de acesso
+        # (registos de ponto incluem GPS) tem de estar aqui.
+        if not _is_full_rh_admin(session):
+            caller_pk = _caller_pk()
+            if user_fk and user_fk != caller_pk:
+                if not _is_direct_superior(session, user_fk, caller_pk):
+                    raise APIError('Sem permissão para ver registos de ponto deste colaborador', 403)
+            else:
+                user_fk = caller_pk
+
         filters = ['1=1']
         params: dict = {}
         if user_fk:
@@ -592,15 +682,17 @@ def get_ponto(current_user: str, user_fk: Optional[int], data_inicio: Optional[s
             text(f'SELECT * FROM vbl_rh_ponto WHERE {where} ORDER BY data DESC, evento_ordem'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
 def submeter_ponto_mensal(data: dict, current_user: str):
     payload = PontoSubmeter.model_validate(data)
+    # Submissão é sempre em nome próprio — mesmo motivo de registar_ponto_evento.
+    payload.user_fk = _caller_pk()
     with db_session_manager(current_user) as session:
         problemas = _dias_problematicos_mes(session, payload.user_fk, payload.ano, payload.mes)
-        if problemas['dias_sem_registo'] or problemas['dias_incompletos']:
+        if problemas['dias_sem_registo'] or problemas['dias_incompletos'] or problemas['dias_por_justificar']:
             raise APIError(
                 'Existem dias por corrigir antes de submeter o mapa mensal.',
                 400,
@@ -619,6 +711,22 @@ def get_ponto_mensal(current_user: str, user_fk: Optional[int], ano: Optional[in
     with db_session_manager(current_user) as session:
         filters = ['1=1']
         params: dict = {}
+
+        if not _is_full_rh_admin(session):
+            caller_pk = _caller_pk()
+            if user_fk:
+                if user_fk != caller_pk and not _is_direct_superior(session, user_fk, caller_pk):
+                    raise APIError('Sem permissão para ver o mapa de ponto deste colaborador', 403)
+            else:
+                # Sem alvo específico (separador Aprovação): só a equipa
+                # directa, nunca o próprio — ninguém aprova o seu mapa (isso
+                # cabe ao SEU superior/Admin RH, não a si próprio) nem a
+                # organização toda.
+                filters.append(
+                    'tb_user_fk IN (SELECT pk FROM ts_rh_colaborador WHERE superior_fk = :caller_pk)'
+                )
+                params['caller_pk'] = caller_pk
+
         if user_fk:
             filters.append('tb_user_fk = :user_fk')
             params['user_fk'] = user_fk
@@ -636,12 +744,18 @@ def get_ponto_mensal(current_user: str, user_fk: Optional[int], ano: Optional[in
             text(f'SELECT * FROM vbl_rh_ponto_mensal WHERE {where} ORDER BY ano DESC, mes DESC'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
 def corrigir_ponto(pk: int, data: dict, current_user: str):
+    """Corrige a hora de um registo existente. Duas vias: o próprio
+    colaborador corrige o seu registo (auto-correcao, nota obrigatória) ou
+    um admin RH/supervisor da equipa corrige em nome de outrem (correcao)."""
     payload = PontoCorrigir.model_validate(data)
+    if not (payload.notas and payload.notas.strip()):
+        raise APIError('É obrigatório justificar a correcção nas observações.', 400)
+
     with db_session_manager(current_user) as session:
         registo = session.execute(
             text('SELECT tb_user_fk, data FROM tb_rh_ponto WHERE pk = :pk'), {'pk': pk}
@@ -649,31 +763,59 @@ def corrigir_ponto(pk: int, data: dict, current_user: str):
         if not registo:
             raise APIError('Registo de ponto não encontrado', 404)
 
-        if not _is_full_rh_admin(session):
-            caller_pk = _caller_pk()
-            if not _is_direct_superior(session, registo.tb_user_fk, caller_pk):
-                raise APIError('Só pode corrigir registos de colaboradores da sua equipa', 403)
+        caller_pk = _caller_pk()
+        is_self = registo.tb_user_fk == caller_pk
+
+        if is_self:
+            fonte = 'auto-correcao'
             if not _mes_pendente_ou_nao_submetido(session, registo.tb_user_fk, registo.data):
                 raise APIError('Só é possível corrigir enquanto o mapa mensal está pendente', 403)
+        else:
+            fonte = 'correcao'
+            if not _is_full_rh_admin(session):
+                if not _is_direct_superior(session, registo.tb_user_fk, caller_pk):
+                    raise APIError('Só pode corrigir registos de colaboradores da sua equipa', 403)
+                if not _mes_pendente_ou_nao_submetido(session, registo.tb_user_fk, registo.data):
+                    raise APIError('Só é possível corrigir enquanto o mapa mensal está pendente', 403)
 
         result = session.execute(text("""
-            SELECT fbo_rh_ponto_corrigir(:pk, CAST(:ts_registo AS TIMESTAMP), :notas) AS result
-        """), {'pk': pk, **payload.model_dump()}).scalar()
+            SELECT fbo_rh_ponto_corrigir(:pk, CAST(:ts_registo AS TIMESTAMP), :notas, :fonte) AS result
+        """), {'pk': pk, 'ts_registo': payload.ts_registo, 'notas': payload.notas, 'fonte': fonte}).scalar()
         _assert_success(result, 'Erro ao corrigir registo de ponto')
+        if not is_self:
+            audit_service.record(
+                session, hist_client=caller_pk,
+                action='rh.ponto.corrigir_terceiro', resource='ponto', resource_id=pk,
+                meta={'ts_registo': payload.ts_registo, 'notas': payload.notas}, ip=request.remote_addr,
+            )
         return jsonify({'message': 'Registo corrigido', 'result': format_message(result)}), 200
 
 
 @api_error_handler
 def adicionar_ponto_admin(data: dict, current_user: str):
-    """Adiciona evento de ponto com timestamp personalizado (admin RH ou supervisor da equipa)."""
+    """Adiciona evento de ponto com timestamp personalizado. Duas vias: o
+    próprio colaborador adiciona um evento em falta no seu dia (esquecimento,
+    engano — auto-correcao, nota obrigatória) ou um admin RH/supervisor da
+    equipa adiciona em nome de outrem (correcao)."""
     payload = PontoEventoAdminCreate.model_validate(data)
+    if not (payload.notas and payload.notas.strip()):
+        raise APIError('É obrigatório justificar a correcção nas observações.', 400)
+
     with db_session_manager(current_user) as session:
-        if not _is_full_rh_admin(session):
-            caller_pk = _caller_pk()
-            if not _is_direct_superior(session, payload.user_fk, caller_pk):
-                raise APIError('Só pode adicionar registos de colaboradores da sua equipa', 403)
+        caller_pk = _caller_pk()
+        is_self = payload.user_fk == caller_pk
+
+        if is_self:
+            fonte = 'auto-correcao'
             if not _mes_pendente_ou_nao_submetido(session, payload.user_fk, payload.ts_registo[:10]):
                 raise APIError('Só é possível adicionar registos enquanto o mapa mensal está pendente', 403)
+        else:
+            fonte = 'correcao'
+            if not _is_full_rh_admin(session):
+                if not _is_direct_superior(session, payload.user_fk, caller_pk):
+                    raise APIError('Só pode adicionar registos de colaboradores da sua equipa', 403)
+                if not _mes_pendente_ou_nao_submetido(session, payload.user_fk, payload.ts_registo[:10]):
+                    raise APIError('Só é possível adicionar registos enquanto o mapa mensal está pendente', 403)
 
         row = session.execute(text("""
             INSERT INTO tb_rh_ponto (pk, tb_user_fk, tt_evento_fk, data, ts_registo, fonte, notas)
@@ -683,7 +825,7 @@ def adicionar_ponto_admin(data: dict, current_user: str):
                 :tt_evento_fk,
                 CAST(:ts_registo AS DATE),
                 CAST(:ts_registo AS TIMESTAMP WITHOUT TIME ZONE),
-                'correcao',
+                :fonte,
                 :notas
             )
             RETURNING pk
@@ -691,8 +833,15 @@ def adicionar_ponto_admin(data: dict, current_user: str):
             'user_fk': payload.user_fk,
             'tt_evento_fk': payload.tt_evento_fk,
             'ts_registo': payload.ts_registo,
-            'notas': payload.notas or 'Registo manual (responsável)',
+            'fonte': fonte,
+            'notas': payload.notas,
         }).fetchone()
+        if not is_self:
+            audit_service.record(
+                session, hist_client=caller_pk,
+                action='rh.ponto.adicionar_terceiro', resource='ponto', resource_id=row.pk,
+                meta={'ts_registo': payload.ts_registo, 'notas': payload.notas}, ip=request.remote_addr,
+            )
         return jsonify({'ok': True, 'pk': row.pk}), 201
 
 
@@ -711,6 +860,11 @@ def executar_workflow(data: dict, current_user_pk: int, current_user: str):
             ) AS result
         """), {**payload.model_dump(), 'user_fk': current_user_pk}).scalar()
         _assert_success(result, 'Erro no workflow')
+        audit_service.record(
+            session, hist_client=current_user_pk,
+            action=f'rh.{payload.tipo_ref}.workflow', resource=payload.tipo_ref, resource_id=payload.ref_pk,
+            meta={'step': payload.step, 'ts_estado_fk': payload.ts_estado_fk}, ip=request.remote_addr,
+        )
         return jsonify({'message': 'Workflow executado', 'result': format_message(result)}), 200
 
 
@@ -739,7 +893,7 @@ def criar_ferias(data: dict, current_user: str):
 def editar_ferias(pk: int, data: dict, current_user: str):
     payload = FeriasUpdate.model_validate(data)
     with db_session_manager(current_user) as session:
-        if not _is_rh_admin(current_user, session):
+        if not _is_full_rh_admin(session):
             owner = session.execute(
                 text('SELECT tb_user_fk FROM tb_rh_ferias WHERE pk = :pk'), {'pk': pk}
             ).scalar()
@@ -758,8 +912,9 @@ def editar_ferias(pk: int, data: dict, current_user: str):
 @api_error_handler
 def get_ferias(current_user: str, user_fk: Optional[int], ano: Optional[int], estado: Optional[int]):
     with db_session_manager(current_user) as session:
-        # Só chefes/RH/admin podem ver pedidos de outros colaboradores.
-        if not _is_rh_admin(current_user, session):
+        # Só Admin RH pode ver pedidos de outros colaboradores por user_fk livre —
+        # supervisores usam a fila dedicada (GET /rh/gestao/pendentes e /equipa).
+        if not _is_full_rh_admin(session):
             user_fk = _caller_pk()
         filters = ['1=1']
         params: dict = {}
@@ -777,7 +932,7 @@ def get_ferias(current_user: str, user_fk: Optional[int], ano: Optional[int], es
             text(f'SELECT * FROM vbl_rh_ferias WHERE {where} ORDER BY data_inicio DESC'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 # ---------------------------------------------------------------------------
@@ -800,7 +955,7 @@ def get_conflitos_ferias(current_user: str, user_fk: int, data_inicio: str, data
             'data_fim': data_fim,
             'excluir_pk': excluir_pk,
         }).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
@@ -816,7 +971,7 @@ def get_mapa_ferias(current_user: str, ano: int, equipa_fk: Optional[int] = None
             text(f'SELECT * FROM vbl_rh_ferias_mapa WHERE {where} ORDER BY equipa_codigo, colaborador_nome, data_inicio'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 # ---------------------------------------------------------------------------
@@ -828,12 +983,13 @@ def criar_falta(data: dict, current_user: str):
     payload = FaltaCreate.model_validate(data)
     with db_session_manager(current_user) as session:
         p = payload.model_dump()
-        if _is_rh_admin(current_user, session):
-            # Chefe/RH a comunicar falta de outro colaborador.
-            p['comunicado_por'] = _caller_pk()
+        caller_pk = _caller_pk()
+        if _is_full_rh_admin(session) or _is_direct_superior(session, payload.user_fk, caller_pk):
+            # Chefe directo/RH a comunicar falta de um colaborador da sua equipa.
+            p['comunicado_por'] = caller_pk
         else:
             # Auto-registo — sempre em nome próprio.
-            p['user_fk'] = _caller_pk()
+            p['user_fk'] = caller_pk
             p['comunicado_por'] = None
         result = session.execute(text("""
             SELECT fbo_rh_faltas(
@@ -849,7 +1005,7 @@ def criar_falta(data: dict, current_user: str):
 def editar_falta(pk: int, data: dict, current_user: str):
     payload = FaltaUpdate.model_validate(data)
     with db_session_manager(current_user) as session:
-        if not _is_rh_admin(current_user, session):
+        if not _is_full_rh_admin(session):
             owner = session.execute(
                 text('SELECT tb_user_fk FROM tb_rh_faltas WHERE pk = :pk'), {'pk': pk}
             ).scalar()
@@ -868,7 +1024,9 @@ def editar_falta(pk: int, data: dict, current_user: str):
 @api_error_handler
 def get_faltas(current_user: str, user_fk: Optional[int], ano: Optional[int], estado: Optional[int]):
     with db_session_manager(current_user) as session:
-        if not _is_rh_admin(current_user, session):
+        # Só Admin RH pode ver faltas de outros por user_fk livre — supervisores
+        # usam a fila dedicada (GET /rh/gestao/pendentes e /equipa).
+        if not _is_full_rh_admin(session):
             user_fk = _caller_pk()
         filters = ['1=1']
         params: dict = {}
@@ -886,7 +1044,7 @@ def get_faltas(current_user: str, user_fk: Optional[int], ano: Optional[int], es
             text(f'SELECT * FROM vbl_rh_faltas WHERE {where} ORDER BY data DESC'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 # ---------------------------------------------------------------------------
@@ -902,12 +1060,28 @@ def _falta_upload_dir(pk: int, user_fk: int, data: date) -> str:
 
 def _falta_record(session, pk: int):
     row = session.execute(
-        text("SELECT pk, tb_user_fk, data, documentos FROM tb_rh_faltas WHERE pk = :pk"),
+        text("SELECT pk, tb_user_fk, data, documentos, ts_estado_fk FROM tb_rh_faltas WHERE pk = :pk"),
         {'pk': pk},
     ).fetchone()
     if not row:
         raise APIError('Falta não encontrada', 404)
     return row
+
+
+def _assert_falta_anexo_visivel(session, row):
+    """Dono do registo ou Admin RH — mesma regra dos anexos de Participações."""
+    if _is_full_rh_admin(session) or row.tb_user_fk == _caller_pk():
+        return
+    raise APIError('Sem permissão para aceder aos anexos desta falta', 403)
+
+
+def _assert_falta_anexo_editavel(session, row):
+    """Além da visibilidade, bloqueia alterações a partir do momento em que
+    a falta deixou de estar Pendente/Validada — mesma regra de
+    fbo_rh_participacao para anexos de Participações."""
+    _assert_falta_anexo_visivel(session, row)
+    if row.ts_estado_fk not in (1, 2):
+        raise APIError('Não é possível alterar anexos de uma falta já validada.', 400)
 
 
 @api_error_handler
@@ -918,6 +1092,7 @@ def upload_anexos_falta(pk: int, current_user: str):
 
     with db_session_manager(current_user) as session:
         row  = _falta_record(session, pk)
+        _assert_falta_anexo_editavel(session, row)
         docs = list(row.documentos or [])
 
         if len(docs) >= _FALTA_MAX_FILES:
@@ -970,6 +1145,7 @@ def download_anexo_falta(pk: int, filename: str, current_user: str):
 
     with db_session_manager(current_user) as session:
         row = _falta_record(session, pk)
+        _assert_falta_anexo_visivel(session, row)
 
     file_path = os.path.join(_falta_upload_dir(pk, row.tb_user_fk, row.data), filename)
     if not os.path.isfile(file_path):
@@ -985,6 +1161,7 @@ def delete_anexo_falta(pk: int, filename: str, current_user: str):
 
     with db_session_manager(current_user) as session:
         row  = _falta_record(session, pk)
+        _assert_falta_anexo_editavel(session, row)
         docs = list(row.documentos or [])
 
         docs_novos = [d for d in docs if d.get('filename') != filename]
@@ -1055,7 +1232,7 @@ def get_horarios(current_user: str, user_fk: Optional[int], apenas_activos: bool
             text(f'SELECT * FROM vbl_rh_horario WHERE {where} ORDER BY colaborador_nome, data_inicio DESC'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 # ---------------------------------------------------------------------------
@@ -1093,7 +1270,7 @@ def get_config(current_user: str, user_fk: Optional[int], ano: Optional[int]):
             text(f'SELECT * FROM vbl_rh_config WHERE {where} ORDER BY ano DESC'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 # ---------------------------------------------------------------------------
@@ -1119,7 +1296,7 @@ def get_piquete(current_user: str, ano: Optional[int], mes: Optional[int], user_
             text(f'SELECT * FROM vbl_rh_piquete WHERE {where} ORDER BY data_inicio DESC'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
@@ -1136,14 +1313,12 @@ def gerar_escala_piquete(data: dict, current_user: str):
 @api_error_handler
 def confirmar_piquete(pk: int, current_user_pk: int, current_user: str):
     with db_session_manager(current_user) as session:
+        # fbo_rh_piquete_confirmar já define ts_estado_fk=3 (Aprovado RH) e
+        # já valida que a escala pertence a current_user_pk — nada a fazer
+        # depois de a função devolver sucesso.
         result = session.execute(text("""
             SELECT fbo_rh_piquete_confirmar(:pk, :user_fk) AS result
         """), {'pk': pk, 'user_fk': current_user_pk}).scalar()
-        
-        if result and "<sucess>" in result:
-            # Forçar atualização do estado para "Aprovado RH" (3) na base de dados
-            session.execute(text("UPDATE tb_rh_piquete_escala SET ts_estado_fk = 3 WHERE pk = :pk"), {'pk': pk})
-            
         _assert_success(result, 'Erro ao confirmar piquete')
         return jsonify({'message': 'Piquete confirmado', 'result': format_message(result)}), 200
 
@@ -1152,18 +1327,10 @@ def confirmar_piquete(pk: int, current_user_pk: int, current_user: str):
 def criar_escala_piquete(data: dict, current_user: str):
     payload = EscalaCreate.model_validate(data)
     with db_session_manager(current_user) as session:
-        exists = session.execute(text("""
-            SELECT 1 FROM tb_rh_piquete_escala
-            WHERE tb_user_fk = :user_fk AND data_inicio = :data_inicio
-        """), {'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio}).scalar()
-
-        if exists:
-            raise APIError('Este colaborador já tem uma escala registada com esta data de início.', 400)
-
-        session.execute(text("""
-            INSERT INTO tb_rh_piquete_escala (pk, tb_user_fk, data_inicio, data_fim, confirmado, ts_estado_fk, gerado_auto)
-            VALUES (fs_nextcode(), :user_fk, :data_inicio, :data_fim, FALSE, 1, FALSE)
-        """), {'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio, 'data_fim': payload.data_fim})
+        result = session.execute(text("""
+            SELECT fbo_rh_piquete_escala(0::SMALLINT, NULL, :user_fk, :data_inicio, :data_fim) AS result
+        """), {'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio, 'data_fim': payload.data_fim}).scalar()
+        _assert_success(result, 'Erro ao criar escala')
         return jsonify({'message': 'Escala criada com sucesso'}), 200
 
 
@@ -1171,27 +1338,10 @@ def criar_escala_piquete(data: dict, current_user: str):
 def editar_escala_piquete(pk: int, data: dict, current_user: str):
     payload = EscalaUpdate.model_validate(data)
     with db_session_manager(current_user) as session:
-        exists = session.execute(text("""
-            SELECT 1 FROM tb_rh_piquete_escala
-            WHERE tb_user_fk = :user_fk
-              AND data_inicio = :data_inicio
-              AND pk != :pk
-        """), {'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio, 'pk': pk}).scalar()
-
-        if exists:
-            raise APIError('Este colaborador já tem outra escala registada com esta data de início.', 400)
-
-        session.execute(text("""
-            UPDATE tb_rh_piquete_escala
-            SET tb_user_fk = :user_fk,
-                data_inicio = :data_inicio,
-                data_fim = :data_fim,
-                confirmado = FALSE,
-                ts_confirmacao = NULL,
-                ts_estado_fk = 1,
-                gerado_auto = FALSE
-            WHERE pk = :pk
-        """), {'pk': pk, 'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio, 'data_fim': payload.data_fim})
+        result = session.execute(text("""
+            SELECT fbo_rh_piquete_escala(1::SMALLINT, :pk, :user_fk, :data_inicio, :data_fim) AS result
+        """), {'pk': pk, 'user_fk': payload.tb_user_fk, 'data_inicio': payload.data_inicio, 'data_fim': payload.data_fim}).scalar()
+        _assert_success(result, 'Erro ao editar escala')
         return jsonify({'message': 'Escala atualizada com sucesso'}), 200
 
 
@@ -1199,7 +1349,7 @@ def editar_escala_piquete(pk: int, data: dict, current_user: str):
 def get_piquete_regras(current_user: str):
     with db_session_manager(current_user) as session:
         rows = session.execute(text("SELECT * FROM ts_rh_piquete_regras ORDER BY pk")).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
@@ -1249,7 +1399,7 @@ def get_ocorrencias(current_user: str, escala_fk: Optional[int], ano: Optional[i
             text(f'SELECT * FROM vbl_rh_piquete_ocorrencias WHERE {where} ORDER BY created_at DESC'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
@@ -1360,7 +1510,7 @@ def get_locais(current_user: str):
         rows = session.execute(
             text('SELECT * FROM vbl_rh_local ORDER BY nome')
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
@@ -1426,4 +1576,4 @@ def get_ponto_alertas(current_user: str, user_fk: Optional[int], data_inicio: Op
             text(f'SELECT * FROM vbl_rh_ponto_alertas WHERE {where} ORDER BY ts_registo DESC'),
             params
         ).mappings().all()
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200

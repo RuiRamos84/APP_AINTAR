@@ -1,4 +1,3 @@
-from datetime import date, datetime, time
 from flask import jsonify, current_app
 from sqlalchemy import text
 from typing import Optional
@@ -6,22 +5,10 @@ from pydantic import BaseModel
 from ..utils.utils import db_session_manager, format_message
 from app.utils.error_handler import api_error_handler, APIError
 from app.utils.logger import get_logger
+from app.utils.serializers import serialize_rows
+from app.services import audit_service
 
 logger = get_logger(__name__)
-
-
-def _rows_to_list(rows):
-    """Converte date/datetime/time para ISO antes do jsonify — o serializador
-    por omissão do Flask usa http_date() (formato GMT) em datetimes "naive",
-    o que desloca a hora exibida no browser (ex: 10:03 local passa a 11:03)."""
-    out = []
-    for r in rows:
-        d = dict(r)
-        for k, v in d.items():
-            if isinstance(v, (date, datetime, time)):
-                d[k] = v.isoformat()
-        out.append(d)
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -57,23 +44,6 @@ def _get_superior_fk(current_user: str, session) -> Optional[int]:
     return row.superior_fk if row else None
 
 
-def _is_rh_admin(current_user: str, session) -> bool:
-    from flask_jwt_extended import get_jwt
-    claims = get_jwt()
-    profile = claims.get('profile', -1)
-    if profile == 0:
-        return True
-    user_pk = claims.get('user_id')
-    row = session.execute(text("""
-        SELECT EXISTS (
-            SELECT 1 FROM ts_client c
-            JOIN ts_interface i ON i.value IN ('rh.admin', 'rh.validate')
-            WHERE c.pk = :pk AND c.interface @> ARRAY[i.pk]
-        ) AS is_admin
-    """), {'pk': user_pk}).fetchone()
-    return bool(row.is_admin) if row else False
-
-
 def _is_supervisor(current_user: str, session, user_pk: int) -> bool:
     """Verifica se o utilizador é superior direto de alguém."""
     row = session.execute(
@@ -84,7 +54,12 @@ def _is_supervisor(current_user: str, session, user_pk: int) -> bool:
 
 
 def _is_full_rh_admin(session) -> bool:
-    """Admin de sistema (profile=0) ou rh.admin — sem restrição de equipa."""
+    """Admin de sistema (profile=0) ou rh.admin — sem restrição de equipa.
+    Usado para visibilidade/gestão de dados (ver/editar de qualquer
+    colaborador, gerir locais, documentos, etc.). Para autorizar um PASSO de
+    workflow específico usar _assert_pode_validar, não isto directamente —
+    rh.admin não deve poder validar o nível de supervisor de uma equipa que
+    não é sua só por ser RH."""
     from flask_jwt_extended import get_jwt
     claims = get_jwt()
     if claims.get('profile') == 0:
@@ -97,6 +72,14 @@ def _is_full_rh_admin(session) -> bool:
         ) AS is_admin
     """), {'pk': claims.get('user_id')}).fetchone()
     return bool(row.is_admin) if row else False
+
+
+def _is_system_admin() -> bool:
+    """Admin de sistema (profile=0) apenas — bypassa qualquer validação de
+    workflow, incluindo o nível 1 (supervisor) mesmo sem ser o superior
+    directo. rh.admin (RH) NÃO entra aqui — RH só valida o seu próprio nível."""
+    from flask_jwt_extended import get_jwt
+    return get_jwt().get('profile') == 0
 
 
 def _is_direct_superior(session, employee_pk: int, supervisor_pk: int) -> bool:
@@ -125,16 +108,24 @@ def _get_owner_fk(session, tipo_ref: str, ref_pk: int) -> Optional[int]:
 
 
 def _assert_pode_validar(session, tipo_ref: str, ref_pk: int, step: int, caller_pk: int) -> None:
-    """Só o superior directo do colaborador valida o passo 1; o passo 2 (RH) exige rh.admin."""
-    if _is_full_rh_admin(session):
+    """Cada papel só valida na sua própria condição:
+    - Admin de sistema (profile=0): valida qualquer passo, sem restrição.
+    - Nível 1 (supervisor): exige ser de facto o superior directo do
+      colaborador — mesmo rh.admin não bypassa este nível só por ser RH;
+      quem valida como supervisor tem de o ser realmente.
+    - Níveis seguintes (RH): exigem rh.admin.
+    """
+    if _is_system_admin():
         return
-    if step != 1:
+    if step == 1:
+        owner_fk = _get_owner_fk(session, tipo_ref, ref_pk)
+        if owner_fk is None:
+            raise APIError(f'Registo não encontrado: {ref_pk}', 404)
+        if not _is_direct_superior(session, owner_fk, caller_pk):
+            raise APIError('Só o superior directo do colaborador pode validar este registo', 403)
+        return
+    if not _is_full_rh_admin(session):
         raise APIError('Só o RH pode validar este passo do workflow', 403)
-    owner_fk = _get_owner_fk(session, tipo_ref, ref_pk)
-    if owner_fk is None:
-        raise APIError(f'Registo não encontrado: {ref_pk}', 404)
-    if not _is_direct_superior(session, owner_fk, caller_pk):
-        raise APIError('Só o superior directo do colaborador pode validar este registo', 403)
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +139,9 @@ def get_pendentes(current_user: str, tipo: Optional[str], user_fk_filter: Option
     caller_pk = claims.get('user_id')
 
     with db_session_manager(current_user) as session:
-        is_admin = _is_rh_admin(current_user, session)
+        # Só Admin RH vê tudo — um supervisor (rh.validate) fica sempre
+        # restringido à sua equipa directa, mesmo passando user_fk_filter.
+        is_admin = _is_full_rh_admin(session)
 
         filters = ['1=1']
         params: dict = {}
@@ -157,13 +150,13 @@ def get_pendentes(current_user: str, tipo: Optional[str], user_fk_filter: Option
             filters.append('tipo = :tipo')
             params['tipo'] = tipo
 
+        if not is_admin:
+            filters.append('superior_fk = :superior_fk')
+            params['superior_fk'] = caller_pk
+
         if user_fk_filter:
             filters.append('tb_user_fk = :user_fk')
             params['user_fk'] = user_fk_filter
-        elif not is_admin:
-            # Supervisor: ver apenas a sua equipa direta
-            filters.append('superior_fk = :superior_fk')
-            params['superior_fk'] = caller_pk
 
         where = ' AND '.join(filters)
         rows = session.execute(
@@ -179,7 +172,7 @@ def get_pendentes(current_user: str, tipo: Optional[str], user_fk_filter: Option
             params,
         ).mappings().all()
 
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
@@ -189,17 +182,20 @@ def get_equipa(current_user: str, user_fk_filter: Optional[int]):
     caller_pk = claims.get('user_id')
 
     with db_session_manager(current_user) as session:
-        is_admin = _is_rh_admin(current_user, session)
+        # Só Admin RH vê a equipa toda — um supervisor (rh.validate) fica
+        # sempre restringido aos seus subordinados directos.
+        is_admin = _is_full_rh_admin(session)
 
         filters = ['1=1']
         params: dict = {}
 
+        if not is_admin:
+            filters.append('superior_fk = :superior_fk')
+            params['superior_fk'] = caller_pk
+
         if user_fk_filter:
             filters.append('pk = :user_fk')
             params['user_fk'] = user_fk_filter
-        elif not is_admin:
-            filters.append('superior_fk = :superior_fk')
-            params['superior_fk'] = caller_pk
 
         where = ' AND '.join(filters)
         rows = session.execute(
@@ -218,11 +214,11 @@ def get_equipa(current_user: str, user_fk_filter: Optional[int]):
             params,
         ).mappings().all()
 
-        return jsonify(_rows_to_list(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
-def workflow_bulk(data: dict, current_user: str):
+def workflow_bulk(data: dict, current_user: str, ip: str = None):
     from flask_jwt_extended import get_jwt
     claims = get_jwt()
     caller_pk = claims.get('user_id')
@@ -275,6 +271,11 @@ def workflow_bulk(data: dict, current_user: str):
 
                 if result and ('<sucess>' in result.lower() or '<success>' in result.lower()):
                     resultados['ok'].append(pk)
+                    audit_service.record(
+                        session, hist_client=caller_pk,
+                        action=f'rh.{tipo_ref}.workflow', resource=tipo_ref, resource_id=pk,
+                        meta={'step': payload.step, 'ts_estado_fk': payload.ts_estado_fk}, ip=ip,
+                    )
                 else:
                     resultados['erro'].append({'pk': pk, 'msg': result or 'Erro desconhecido'})
                     logger.warning(f'[Bulk WF] pk={pk} tipo={tipo_ref}: {result}')

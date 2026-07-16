@@ -4,14 +4,16 @@ from datetime import date, time, datetime
 from typing import Optional
 from flask import jsonify, request, current_app, send_file
 from sqlalchemy import text
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import get_jwt
 from ..utils.utils import format_message, db_session_manager
 from app.utils.error_handler import api_error_handler, APIError
 from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
-from .rh_gestao_service import _is_rh_admin, _is_direct_superior
+from app.utils.serializers import serialize_rows
+from .rh_gestao_service import _is_full_rh_admin, _is_direct_superior, _assert_pode_validar
+from . import audit_service
 
 ALLOWED_EXTS  = {'.pdf', '.jpg', '.jpeg', '.png'}
 MAX_FILES     = 5
@@ -31,17 +33,6 @@ def _ok(result: Optional[str], msg: str):
 
 def _caller_pk() -> int:
     return get_jwt().get('user_id')
-
-
-def _rows(rows) -> list:
-    out = []
-    for r in rows:
-        d = dict(r)
-        for k, v in d.items():
-            if hasattr(v, 'isoformat'):
-                d[k] = v.isoformat()
-        out.append(d)
-    return out
 
 
 def _get_superior_fk(session, user_fk: int):
@@ -101,7 +92,8 @@ class ParticipacaoCreate(BaseModel):
     ponto_regresso_fk: Optional[int] = None
     data_participacao: Optional[date] = None
     observacoes: Optional[str] = None
-    documentos: Optional[list] = Field(default_factory=list)
+    # documentos NÃO é aceite aqui — gerido exclusivamente por
+    # POST/DELETE /rh/participacoes/<pk>/anexos.
 
 
 class ParticipacaoUpdate(BaseModel):
@@ -115,7 +107,7 @@ class ParticipacaoUpdate(BaseModel):
     ponto_regresso_fk: Optional[int] = None
     data_participacao: Optional[date] = None
     observacoes: Optional[str] = None
-    documentos: Optional[list] = None
+    # documentos NÃO é aceite aqui — mesma razão de ParticipacaoCreate.
 
 
 class ParticipacaoWf(BaseModel):
@@ -138,7 +130,7 @@ def get_motivos(current_user: str):
             WHERE ativo = TRUE
             ORDER BY pk
         """)).mappings().all()
-        return jsonify(_rows(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 # ---------------------------------------------------------------------------
@@ -158,8 +150,9 @@ def get_participacoes(
     params: dict = {}
 
     with db_session_manager(current_user) as session:
-        # Só chefes/RH/admin podem ver participações de outros colaboradores.
-        if not _is_rh_admin(current_user, session):
+        # Só Admin RH pode ver participações de outros por user_fk livre —
+        # supervisores usam GET /rh/gestao/pendentes ou GET /rh/participacoes/<pk>.
+        if not _is_full_rh_admin(session):
             user_fk = _caller_pk()
 
         if user_fk:
@@ -183,7 +176,7 @@ def get_participacoes(
             text(f'SELECT * FROM vbl_rh_participacao WHERE {where} ORDER BY data_inicio DESC'),
             params,
         ).mappings().all()
-        return jsonify(_rows(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 @api_error_handler
@@ -202,22 +195,29 @@ def get_participacao_by_pk(pk: int, current_user: str):
         caller_pk = _caller_pk()
         if (
             row['tb_user_fk'] != caller_pk
-            and not _is_rh_admin(current_user, session)
+            and not _is_full_rh_admin(session)
             and not _is_direct_superior(session, row['tb_user_fk'], caller_pk)
         ):
             raise APIError('Sem permissão para ver esta participação', 403)
 
-        return jsonify(_rows([row])[0]), 200
+        return jsonify(serialize_rows([row])[0]), 200
 
 
 @api_error_handler
 def criar_participacao(data: dict, current_user: str):
     p = ParticipacaoCreate.model_validate(data)
-    docs = json.dumps(p.documentos or [])
+    # Documentos entram sempre vazios — só POST /rh/participacoes/<pk>/anexos
+    # pode adicionar ficheiros, nunca o payload de criação.
+    docs = json.dumps([])
 
     with db_session_manager(current_user) as session:
-        # Só chefes/RH/admin podem registar participações em nome de outros.
-        user_fk = p.user_fk if (p.user_fk and _is_rh_admin(current_user, session)) else _caller_pk()
+        # Só o Admin RH ou o superior directo do colaborador-alvo podem
+        # registar participações em nome de outros.
+        caller_pk = _caller_pk()
+        pode_em_nome_de_outro = p.user_fk and (
+            _is_full_rh_admin(session) or _is_direct_superior(session, p.user_fk, caller_pk)
+        )
+        user_fk = p.user_fk if pode_em_nome_de_outro else caller_pk
         result = session.execute(text("""
             SELECT fbo_rh_participacao(
                 0::SMALLINT, NULL,
@@ -277,7 +277,7 @@ def editar_participacao(pk: int, data: dict, current_user: str):
     p = ParticipacaoUpdate.model_validate(data)
 
     with db_session_manager(current_user) as session:
-        is_admin = _is_rh_admin(current_user, session)
+        is_admin = _is_full_rh_admin(session)
         if not is_admin:
             owner = session.execute(
                 text('SELECT tb_user_fk FROM tb_rh_participacao WHERE pk = :pk'), {'pk': pk}
@@ -289,15 +289,13 @@ def editar_participacao(pk: int, data: dict, current_user: str):
             # qualquer valor enviado por um não-admin (o SQL preserva o actual).
             p.data_participacao = None
 
-        # Preservar documentos existentes se não fornecidos na actualização
-        if p.documentos is None:
-            row = session.execute(
-                text("SELECT documentos FROM tb_rh_participacao WHERE pk = :pk"),
-                {'pk': pk},
-            ).fetchone()
-            docs = json.dumps(row.documentos if row and row.documentos else [])
-        else:
-            docs = json.dumps(p.documentos)
+        # Documentos nunca vêm do payload de edição — preservar sempre os
+        # existentes na BD (só POST/DELETE .../anexos altera este array).
+        row = session.execute(
+            text("SELECT documentos FROM tb_rh_participacao WHERE pk = :pk"),
+            {'pk': pk},
+        ).fetchone()
+        docs = json.dumps(row.documentos if row and row.documentos else [])
 
         result = session.execute(text("""
             SELECT fbo_rh_participacao(
@@ -397,9 +395,24 @@ def upload_anexos(pk: int, current_user: str):
 
 
 @api_error_handler
-def download_anexo(pk: int, filename: str, _current_user: str):
+def download_anexo(pk: int, filename: str, current_user: str):
     if '..' in filename or '/' in filename or '\\' in filename:
         raise APIError('Nome de ficheiro inválido', 400)
+
+    with db_session_manager(current_user) as session:
+        row = session.execute(
+            text("SELECT tb_user_fk FROM tb_rh_participacao WHERE pk = :pk"), {'pk': pk},
+        ).fetchone()
+        if not row:
+            raise APIError('Participação não encontrada', 404)
+
+        caller_pk = _caller_pk()
+        if (
+            row.tb_user_fk != caller_pk
+            and not _is_full_rh_admin(session)
+            and not _is_direct_superior(session, row.tb_user_fk, caller_pk)
+        ):
+            raise APIError('Sem permissão para aceder a este anexo', 403)
 
     file_path = os.path.join(_upload_dir(pk), filename)
     if not os.path.isfile(file_path):
@@ -421,7 +434,7 @@ def delete_anexo(pk: int, filename: str, current_user: str):
         if not row:
             raise APIError('Participação não encontrada', 404)
 
-        if not _is_rh_admin(current_user, session) and row.tb_user_fk != _caller_pk():
+        if not _is_full_rh_admin(session) and row.tb_user_fk != _caller_pk():
             raise APIError('Não tem permissão para remover anexos desta participação', 403)
         if row.ts_estado_fk not in (1, 2):
             raise APIError('Não é possível remover anexos de uma participação já validada.', 400)
@@ -471,6 +484,11 @@ def executar_wf(data: dict, user_fk: int, current_user: str):
     validators = []
 
     with db_session_manager(current_user) as session:
+        # step 1 exige ser o superior directo do dono da participação; steps
+        # 2/3 exigem rh.admin (não existe hoje uma permissão distinta para
+        # "Presidência" — rh.admin serve de proxy para ambos os níveis).
+        _assert_pode_validar(session, 'participacao', p.ref_pk, p.step, user_fk)
+
         part = session.execute(
             text("SELECT tb_user_fk FROM tb_rh_participacao WHERE pk = :pk"),
             {'pk': p.ref_pk},
@@ -494,7 +512,15 @@ def executar_wf(data: dict, user_fk: int, current_user: str):
             'notas':        p.notas,
         }).scalar()
 
-    _ok(result, 'Erro no workflow')
+        # Verificado aqui dentro (não depois de fechar a sessão) para que o
+        # registo de auditoria participe da mesma transacção da acção.
+        _ok(result, 'Erro no workflow')
+        audit_service.record(
+            session, hist_client=user_fk,
+            action='rh.participacao.workflow', resource='participacao', resource_id=p.ref_pk,
+            meta={'step': p.step, 'ts_estado_fk': p.ts_estado_fk}, ip=request.remote_addr,
+        )
+
     logger.info(f'Workflow participação: pk={p.ref_pk}, step={p.step}, estado={p.ts_estado_fk}')
 
     estado_label = _ESTADO_LABEL.get(p.ts_estado_fk, 'estado actualizado')

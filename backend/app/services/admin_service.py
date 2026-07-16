@@ -245,10 +245,62 @@ def run_admin_action(key: str, current_user: str):
 @api_error_handler
 def get_activity_logs(filters: dict, current_user: str):
     """
-    Retorna logs de atividade.
-    Requer tabela ts_audit_log dedicada (não implementada ainda).
+    Retorna logs de atividade a partir de ts_audit_log (vbl_audit_log),
+    com paginação server-side — mesmo padrão de get_session_logs, ao lado.
+    Parâmetros:
+        page        - página atual (default 1)
+        per_page    - registos por página (default 50, max 200)
+        action      - filtro exacto por acção (ex: 'rh.ponto.corrigir_terceiro')
+        user_id     - filtro por autor (hist_client)
+        date_from   - data início (ISO, opcional — sem default, o log começa vazio/esparso)
+        date_to     - data fim (ISO, opcional)
     """
-    return {'logs': [], 'total': 0}, 200
+    page     = max(1, int(filters.get('page', 1)))
+    per_page = min(200, max(1, int(filters.get('per_page', 50))))
+    offset   = (page - 1) * per_page
+
+    conditions = []
+    params     = {'limit': per_page, 'offset': offset}
+
+    if filters.get('action'):
+        conditions.append("action = :action")
+        params['action'] = filters['action']
+
+    if filters.get('user_id'):
+        conditions.append("user_id = :user_id")
+        params['user_id'] = filters['user_id']
+
+    if filters.get('date_from'):
+        conditions.append("timestamp::date >= :date_from")
+        params['date_from'] = filters['date_from']
+
+    if filters.get('date_to'):
+        conditions.append("timestamp::date <= :date_to")
+        params['date_to'] = filters['date_to']
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ''
+
+    count_sql = text(f"SELECT COUNT(*) FROM vbl_audit_log {where}")
+    data_sql  = text(f"""
+        SELECT pk, timestamp, user_id, user_name, action, resource, resource_id, meta, ip, success
+          FROM vbl_audit_log
+          {where}
+         ORDER BY timestamp DESC
+         LIMIT :limit OFFSET :offset
+    """)
+
+    with db_session_manager(current_user) as session:
+        total = session.execute(count_sql, params).scalar()
+        rows  = session.execute(data_sql,  params).mappings().all()
+
+    logs = []
+    for r in rows:
+        log = dict(r)
+        if log.get('timestamp'):
+            log['timestamp'] = log['timestamp'].isoformat()
+        logs.append(log)
+
+    return {'logs': logs, 'total': total, 'page': page, 'per_page': per_page}, 200
 
 
 @api_error_handler

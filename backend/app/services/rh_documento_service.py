@@ -8,7 +8,8 @@ from ..utils.utils import db_session_manager
 from app.utils.error_handler import api_error_handler, APIError
 from app.utils.file_processing import process_uploaded_file
 from app.utils.logger import get_logger
-from .rh_gestao_service import _is_rh_admin
+from app.utils.serializers import serialize_rows
+from .rh_gestao_service import _is_full_rh_admin
 
 ALLOWED_EXTS = {'.pdf', '.jpg', '.jpeg', '.png', '.docx', '.doc'}
 MAX_FILES    = 10
@@ -23,16 +24,6 @@ logger = get_logger(__name__)
 def _caller_pk() -> int:
     return get_jwt().get('user_id')
 
-
-def _rows(rows) -> list:
-    out = []
-    for r in rows:
-        d = dict(r)
-        for k, v in d.items():
-            if hasattr(v, 'isoformat'):
-                d[k] = v.isoformat()
-        out.append(d)
-    return out
 
 
 def _colaboradores_base_dir() -> str:
@@ -72,7 +63,7 @@ def get_tipos_documento(current_user: str):
         rows = session.execute(text("""
             SELECT pk, descr FROM tt_rh_tipo_documento WHERE ativo = TRUE ORDER BY pk
         """)).mappings().all()
-        return jsonify(_rows(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 # ---------------------------------------------------------------------------
@@ -82,8 +73,10 @@ def get_tipos_documento(current_user: str):
 @api_error_handler
 def get_documentos(current_user: str, user_fk: Optional[int], ano: Optional[int] = None):
     with db_session_manager(current_user) as session:
-        # Só RH admin vê documentos de outros — colaborador vê só os seus.
-        if not _is_rh_admin(current_user, session):
+        # Só RH admin vê documentos de outros — colaborador vê só os seus
+        # (o superior hierárquico não tem acesso — dados sensíveis: contrato,
+        # exames médicos, avaliação).
+        if not _is_full_rh_admin(session):
             user_fk = _caller_pk()
 
         filters = ['1=1']
@@ -100,7 +93,7 @@ def get_documentos(current_user: str, user_fk: Optional[int], ano: Optional[int]
             text(f'SELECT * FROM vbl_rh_documento WHERE {where} ORDER BY ano DESC NULLS LAST, created_at DESC'),
             params,
         ).mappings().all()
-        return jsonify(_rows(rows)), 200
+        return jsonify(serialize_rows(rows)), 200
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +188,7 @@ def download_documento(pk: int, current_user: str):
         if not row:
             raise APIError('Documento não encontrado', 404)
 
-        if not _is_rh_admin(current_user, session) and row.tb_user_fk != _caller_pk():
+        if not _is_full_rh_admin(session) and row.tb_user_fk != _caller_pk():
             raise APIError('Sem permissão para aceder a este documento', 403)
 
     file_path = _resolver_path_seguro(row.filename)
