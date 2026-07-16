@@ -25,6 +25,24 @@ function validateNumDocId(num, tipo) {
   return n.length > 0
 }
 
+function validateTelemovel(num) {
+  const n = (num || '').replace(/[\s-]/g, '')
+  if (!n) return true
+  return /^\+?351?9\d{8}$/.test(n)
+}
+
+function validateTelefone(num) {
+  const n = (num || '').replace(/[\s-]/g, '')
+  if (!n) return true
+  return /^\+?351?[2-9]\d{8}$/.test(n)
+}
+
+// Bacharelato (código '07') e níveis superiores exigem área de formação académica
+function requiresAreaFormacao(niveis, tt_nivel_hab) {
+  const nivel = niveis?.find(n => String(n.pk) === String(tt_nivel_hab))
+  return !!nivel && nivel.codigo >= '07'
+}
+
 const STEPS = ['Identificação', 'Habilitações', 'Situação Profissional', 'Declarações']
 const SEXOS = ['Masculino', 'Feminino', 'Outro']
 const TIPOS_DOC = ['Cartão de Cidadão', 'Bilhete de Identidade', 'Passaporte', 'Outro']
@@ -211,9 +229,21 @@ export default function CandidaturaPage() {
       if (!form.localidade?.trim())      errs.localidade     = 'Campo obrigatório'
       if (!form.distrito?.trim())        errs.distrito       = 'Campo obrigatório'
       if (!form.concelho?.trim())        errs.concelho       = 'Campo obrigatório'
-      if (!form.telemovel?.trim())       errs.telemovel      = 'Campo obrigatório'
+      if (!form.telemovel?.trim()) {
+        errs.telemovel = 'Campo obrigatório'
+      } else if (!validateTelemovel(form.telemovel)) {
+        errs.telemovel = 'Telemóvel inválido. Introduza um número português válido (ex: 9XXXXXXXX)'
+      }
+      if (form.telefone?.trim() && !validateTelefone(form.telefone)) {
+        errs.telefone = 'Telefone inválido. Introduza um número português válido (ex: 2XXXXXXXX)'
+      }
       if (!form.email.trim())            errs.email          = 'Campo obrigatório'
       if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Email inválido'
+    }
+    if (step === 1) {
+      if (requiresAreaFormacao(refs?.niveis_hab, form.tt_nivel_hab) && !form.area_formacao_academica?.trim()) {
+        errs.area_formacao_academica = 'Campo obrigatório para este nível habilitacional'
+      }
     }
     if (step === 3) {
       if (!form.declara_requisitos) errs.declara_requisitos = 'Obrigatório'
@@ -455,7 +485,8 @@ export default function CandidaturaPage() {
                   {err('telemovel')}
                 </FieldRow>
                 <FieldRow label="Telefone">
-                  <Input type="tel" value={form.telefone} onChange={e => set('telefone', e.target.value)} placeholder="+351 2XX XXX XXX" />
+                  <Input type="tel" value={form.telefone} onChange={e => set('telefone', e.target.value)} placeholder="+351 2XX XXX XXX" className={inputCls('telefone')} />
+                  {err('telefone')}
                 </FieldRow>
                 <div className="sm:col-span-2">
                   <FieldRow label="Endereço de correio eletrónico" required>
@@ -493,8 +524,9 @@ export default function CandidaturaPage() {
 
               <SubsectionHeader number="4.1." title="Formação Académica/Profissional" />
               <div className="grid grid-cols-1 gap-4 mb-6">
-                <FieldRow label="Área de formação académica">
-                  <Input value={form.area_formacao_academica} onChange={e => set('area_formacao_academica', e.target.value)} placeholder="Ex: Engenharia Civil" />
+                <FieldRow label="Área de formação académica" required={requiresAreaFormacao(refs?.niveis_hab, form.tt_nivel_hab)}>
+                  <Input value={form.area_formacao_academica} onChange={e => set('area_formacao_academica', e.target.value)} placeholder="Ex: Engenharia Civil" className={inputCls('area_formacao_academica')} />
+                  {err('area_formacao_academica')}
                 </FieldRow>
                 <FieldRow label="Área de formação profissional">
                   <Input value={form.area_formacao_profissional} onChange={e => set('area_formacao_profissional', e.target.value)} placeholder="Ex: Gestão de Sistemas de Saneamento" />
@@ -770,7 +802,7 @@ export default function CandidaturaPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || !form.declara_requisitos || !form.declara_veracidade || !form.declara_rgpd}
                 className="btn-primary flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {submitting

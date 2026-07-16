@@ -51,6 +51,7 @@ def fetch_meta_data(current_user, profil=None):
         'operacaodia': "SELECT * FROM vbl_operacaodia ORDER BY pk",
         'operacaoaccao': "SELECT * FROM vbl_operacaoaccao ORDER BY pk",
         'operacamodo': "SELECT * FROM vbl_operacaomodo ORDER BY pk",
+        'operadores': "SELECT pk, name FROM ts_client ORDER BY name",
         'analise_forma': "SELECT * FROM vbl_analiseforma ORDER BY pk",
         'analise_param': "SELECT * FROM vbl_analiseparam ORDER BY pk",
         'analise_ponto': "SELECT * FROM vbl_analiseponto ORDER BY pk",

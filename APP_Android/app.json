@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "AINTAR",
+    "slug": "aintar-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "pt.aintar.mobile"
+    },
+    "android": {
+      "package": "pt.aintar.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#1565C0"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "SUBSTITUIR_PELA_CHAVE_GOOGLE_MAPS_ANDROID"
+        }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "A AINTAR precisa de acesso à câmara para o registo e verificação facial do ponto."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "A AINTAR precisa da sua localização para validar o registo de ponto (geofencing)."
+        }
+      ],
+      "expo-font",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fc2d8285-c9c4-4678-a975-55e1f6976fe3"
+      }
+    },
+    "owner": "turtulho"
+  }
+}
