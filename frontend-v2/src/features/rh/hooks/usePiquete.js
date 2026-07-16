@@ -25,7 +25,6 @@ export const usePiquete = (params = {}) => {
   }, [query.isError]);
 
   const invalidateEscala = () => qc.invalidateQueries({ queryKey: ['rh-piquete'] });
-  const invalidateOcorr  = () => qc.invalidateQueries({ queryKey: ['rh-ocorrencias'] });
 
   const gerar = useMutation({
     mutationFn: gerarEscala,
@@ -54,6 +53,8 @@ export const usePiquete = (params = {}) => {
   return {
     escalas: Array.isArray(query.data) ? query.data.map(r => ({ ...r, id: r.pk })) : [],
     isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
     gerar: gerar.mutateAsync,
     isGerando: gerar.isPending,
     confirmar: confirmar.mutateAsync,

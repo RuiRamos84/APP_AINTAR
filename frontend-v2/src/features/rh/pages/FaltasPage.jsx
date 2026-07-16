@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Box, Button, Stack, Badge, Tooltip, IconButton, Chip } from '@mui/material';
+import { Box, Button, Stack, Badge, Tooltip, IconButton, Chip, Alert } from '@mui/material';
 import { Add as AddIcon, HowToReg as WorkflowIcon, EventBusy as FaltasIcon, AttachFile as AnexoIcon } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { ptPT } from '@mui/x-data-grid/locales';
@@ -23,7 +23,7 @@ const FaltasPage = () => {
   const [wfTarget, setWfTarget]     = useState(null);
   const [anexosTarget, setAnexosTarget] = useState(null);
 
-  const { faltas, isLoading, criar, isCriando, editar, isEditando, workflow, isWorkflow } = useFaltas();
+  const { faltas, isLoading, isError, refetch, criar, isCriando, editar, isEditando, workflow, isWorkflow } = useFaltas();
   const { lookups } = useRhLookups();
   const results = useSearch(faltas, search);
 
@@ -108,17 +108,24 @@ const FaltasPage = () => {
         </Stack>
       }
     >
-      <DataGrid
-        rows={results}
-        columns={columns}
-        loading={isLoading}
-        autoHeight
-        density="compact"
-        pageSizeOptions={[25, 50, 100]}
-        initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-        sx={{ border: 0 }}
-      />
+      {isError ? (
+        <Alert severity="error" sx={{ m: 2 }}
+          action={<Button color="inherit" size="small" onClick={refetch}>Tentar novamente</Button>}>
+          Erro ao carregar faltas.
+        </Alert>
+      ) : (
+        <DataGrid
+          rows={results}
+          columns={columns}
+          loading={isLoading}
+          autoHeight
+          density="compact"
+          pageSizeOptions={[25, 50, 100]}
+          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+          localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
+          sx={{ border: 0 }}
+        />
+      )}
 
       <FaltaFormModal
         open={modalOpen} onClose={() => setModalOpen(false)}

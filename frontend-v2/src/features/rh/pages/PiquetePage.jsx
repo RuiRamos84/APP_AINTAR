@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Box, Button, Stack, Tabs, Tab, Chip, FormControl, Select, MenuItem } from '@mui/material';
+import { Box, Button, Stack, Tabs, Tab, Chip, FormControl, Select, MenuItem, Alert } from '@mui/material';
 import {
   Add as AddIcon,
   Refresh as GerarIcon,
@@ -34,7 +34,7 @@ const MESES = Array.from({ length: 12 }, (_, i) => ({
 }));
 
 // ─── Escalas (só DataGrid) ───────────────────────────────────────────────────
-const EscalasTab = ({ search, escalas, isLoading, confirmar, isConfirmando, isAdmin, user, onEdit }) => {
+const EscalasTab = ({ search, escalas, isLoading, isError, onRetry, confirmar, isConfirmando, isAdmin, user, onEdit }) => {
   const results = useSearch(escalas, search);
 
   const columns = useMemo(() => [
@@ -88,6 +88,15 @@ const EscalasTab = ({ search, escalas, isLoading, confirmar, isConfirmando, isAd
       ),
     },
   ], [confirmar, isConfirmando, user?.user_id, isAdmin, onEdit]);
+
+  if (isError) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}
+        action={<Button color="inherit" size="small" onClick={onRetry}>Tentar novamente</Button>}>
+        Erro ao carregar escalas de piquete.
+      </Alert>
+    );
+  }
 
   return (
     <DataGrid
@@ -160,7 +169,7 @@ const PiquetePage = () => {
 
   // Hooks de dados
   const {
-    escalas, isLoading: isLoadingEscalas,
+    escalas, isLoading: isLoadingEscalas, isError: isErrorEscalas, refetch: refetchEscalas,
     gerar, isGerando,
     confirmar, isConfirmando,
     criar: criarEscala, isCriando: isCriandoEscala,
@@ -289,6 +298,8 @@ const PiquetePage = () => {
           search={search}
           escalas={escalas}
           isLoading={isLoadingEscalas}
+          isError={isErrorEscalas}
+          onRetry={refetchEscalas}
           confirmar={confirmar}
           isConfirmando={isConfirmando}
           isAdmin={isAdmin}

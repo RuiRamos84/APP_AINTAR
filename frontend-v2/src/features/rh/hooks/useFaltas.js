@@ -41,6 +41,8 @@ export const useFaltas = (params = {}) => {
   return {
     faltas: Array.isArray(query.data) ? query.data.map(r => ({ ...r, id: r.pk })) : [],
     isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
     criar: criar.mutateAsync,
     isCriando: criar.isPending,
     editar: editar.mutateAsync,

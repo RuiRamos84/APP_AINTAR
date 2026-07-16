@@ -21,6 +21,7 @@ export const useGestaoColaboradores = () => {
   return {
     colaboradores: Array.isArray(query.data) ? query.data.map(r => ({ ...r, id: r.pk })) : [],
     isLoading: query.isLoading,
+    isError: query.isError,
     refetch: query.refetch,
   };
 };

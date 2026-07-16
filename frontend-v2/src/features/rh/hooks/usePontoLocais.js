@@ -8,7 +8,7 @@ import {
 export function useLocais() {
   const qc = useQueryClient();
 
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['rh', 'locais'],
     queryFn: getLocais,
   });
@@ -50,7 +50,7 @@ export function useLocais() {
     onError: (e) => toast.error(e.message),
   });
 
-  return { locais: data, isLoading, criar, isCriando, editar, isEditando, eliminar, isEliminando, setLocal, isSettingLocal };
+  return { locais: data, isLoading, isError, refetch, criar, isCriando, editar, isEditando, eliminar, isEliminando, setLocal, isSettingLocal };
 }
 
 export function usePontoAlertas(params = {}) {

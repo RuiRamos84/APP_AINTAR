@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography, Alert } from '@mui/material';
 import {
   Add as AddIcon, HowToReg as WorkflowIcon,
   BeachAccess as FeriasIcon,
@@ -24,7 +24,7 @@ const FeriasPage = () => {
   const [selected, setSelected]     = useState(null);
   const [wfTarget, setWfTarget]     = useState(null);
 
-  const { ferias, isLoading, criar, isCriando, editar, isEditando, workflow, isWorkflow } = useFerias();
+  const { ferias, isLoading, isError, refetch, criar, isCriando, editar, isEditando, workflow, isWorkflow } = useFerias();
   const { lookups } = useRhLookups();
   const results = useSearch(ferias, search);
 
@@ -93,17 +93,24 @@ const FeriasPage = () => {
         </Stack>
       }
     >
-      <DataGrid
-        rows={results}
-        columns={columns}
-        loading={isLoading}
-        autoHeight
-        density="compact"
-        pageSizeOptions={[25, 50, 100]}
-        initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-        sx={{ border: 0 }}
-      />
+      {isError ? (
+        <Alert severity="error" sx={{ m: 2 }}
+          action={<Button color="inherit" size="small" onClick={refetch}>Tentar novamente</Button>}>
+          Erro ao carregar férias.
+        </Alert>
+      ) : (
+        <DataGrid
+          rows={results}
+          columns={columns}
+          loading={isLoading}
+          autoHeight
+          density="compact"
+          pageSizeOptions={[25, 50, 100]}
+          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+          localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
+          sx={{ border: 0 }}
+        />
+      )}
 
       <FeriasFormModal
         open={modalOpen} onClose={() => setModalOpen(false)}

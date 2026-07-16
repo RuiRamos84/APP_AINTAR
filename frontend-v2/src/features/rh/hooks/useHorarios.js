@@ -35,6 +35,8 @@ export const useHorarios = (params = {}) => {
   return {
     horarios: Array.isArray(query.data) ? query.data.map(r => ({ ...r, id: r.pk })) : [],
     isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
     criar: criar.mutateAsync,
     isCriando: criar.isPending,
     editar: editar.mutateAsync,

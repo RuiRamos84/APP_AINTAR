@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
-  Box, Button, Stack, Chip, CircularProgress,
+  Box, Button, Stack, Chip, CircularProgress, Alert,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
   TextField, Switch, FormControlLabel, Typography,
   useMediaQuery, useTheme,
@@ -175,7 +175,7 @@ const LocaisPage = () => {
   const [selected, setSelected]   = useState(null);
   const [toDelete, setToDelete]   = useState(null);
 
-  const { locais, isLoading, criar, isCriando, editar, isEditando, eliminar, isEliminando } = useLocais();
+  const { locais, isLoading, isError, refetch, criar, isCriando, editar, isEditando, eliminar, isEliminando } = useLocais();
   const results = useSearch(locais, search);
 
   const openCreate = () => { setSelected(null); setModalOpen(true); };
@@ -264,19 +264,26 @@ const LocaisPage = () => {
         Se um registo GPS for efetuado fora do raio de tolerância, será gerado um alerta para o superior hierárquico.
       </Typography>
 
-      <DataGrid
-        rows={results}
-        columns={columns}
-        loading={isLoading}
-        autoHeight
-        density="compact"
-        pageSizeOptions={[25, 50]}
-        initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-        getRowId={(row) => row.pk}
-        columnVisibilityModel={columnVisibilityModel}
-        sx={{ border: 0 }}
-      />
+      {isError ? (
+        <Alert severity="error" sx={{ m: 2 }}
+          action={<Button color="inherit" size="small" onClick={refetch}>Tentar novamente</Button>}>
+          Erro ao carregar locais.
+        </Alert>
+      ) : (
+        <DataGrid
+          rows={results}
+          columns={columns}
+          loading={isLoading}
+          autoHeight
+          density="compact"
+          pageSizeOptions={[25, 50]}
+          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+          localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
+          getRowId={(row) => row.pk}
+          columnVisibilityModel={columnVisibilityModel}
+          sx={{ border: 0 }}
+        />
+      )}
 
       <LocalModal
         open={modalOpen} onClose={() => setModalOpen(false)}

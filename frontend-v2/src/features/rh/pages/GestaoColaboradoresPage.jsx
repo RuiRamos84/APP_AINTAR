@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
-  Button, Stack, Chip, Typography, Tooltip,
+  Button, Stack, Chip, Typography, Tooltip, Alert,
 } from '@mui/material';
 import {
   ManageAccounts as GestaoIcon,
@@ -27,7 +27,7 @@ const GestaoColaboradoresPage = () => {
   const [modalOpen, setModalOpen]   = useState(false);
   const [selected, setSelected]     = useState(null);
 
-  const { colaboradores, isLoading } = useGestaoColaboradores();
+  const { colaboradores, isLoading, isError, refetch } = useGestaoColaboradores();
   const { inicializarAnoTodos, isInicializandoTodos } = useGestaoActions();
   const results = useSearch(colaboradores, search);
 
@@ -129,7 +129,7 @@ const GestaoColaboradoresPage = () => {
         </Stack>
       ),
     },
-  ], []);
+  ], [currentYear]);
 
   return (
     <ModulePage
@@ -157,21 +157,28 @@ const GestaoColaboradoresPage = () => {
         </Stack>
       }
     >
-      <DataGrid
-        rows={results}
-        columns={columns}
-        loading={isLoading}
-        autoHeight
-        density="comfortable"
-        pageSizeOptions={[25, 50, 100]}
-        initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-        sx={{
-          border: 0,
-          '& .MuiDataGrid-row:hover': { cursor: 'pointer' },
-        }}
-        onRowClick={({ row }) => openPerfil(row)}
-      />
+      {isError ? (
+        <Alert severity="error" sx={{ m: 2 }}
+          action={<Button color="inherit" size="small" onClick={refetch}>Tentar novamente</Button>}>
+          Erro ao carregar colaboradores.
+        </Alert>
+      ) : (
+        <DataGrid
+          rows={results}
+          columns={columns}
+          loading={isLoading}
+          autoHeight
+          density="comfortable"
+          pageSizeOptions={[25, 50, 100]}
+          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+          localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
+          sx={{
+            border: 0,
+            '& .MuiDataGrid-row:hover': { cursor: 'pointer' },
+          }}
+          onRowClick={({ row }) => openPerfil(row)}
+        />
+      )}
 
       <ColaboradorPerfilModal
         open={modalOpen}

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Box, Button, Stack, Chip } from '@mui/material';
+import { Box, Button, Stack, Chip, Alert } from '@mui/material';
 import { Add as AddIcon, Schedule as HorariosIcon } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { ptPT } from '@mui/x-data-grid/locales';
@@ -20,7 +20,7 @@ const HorariosPage = () => {
   const [selected, setSelected]   = useState(null);
   const [apenasActivos, setApenasActivos] = useState(true);
 
-  const { horarios, isLoading, criar, isCriando, editar, isEditando } = useHorarios({ activos: apenasActivos });
+  const { horarios, isLoading, isError, refetch, criar, isCriando, editar, isEditando } = useHorarios({ activos: apenasActivos });
   const { lookups } = useRhLookups();
   const results = useSearch(horarios, search);
 
@@ -106,17 +106,24 @@ const HorariosPage = () => {
         </Stack>
       }
     >
-      <DataGrid
-        rows={results}
-        columns={columns}
-        loading={isLoading}
-        autoHeight
-        density="compact"
-        pageSizeOptions={[25, 50, 100]}
-        initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
-        sx={{ border: 0 }}
-      />
+      {isError ? (
+        <Alert severity="error" sx={{ m: 2 }}
+          action={<Button color="inherit" size="small" onClick={refetch}>Tentar novamente</Button>}>
+          Erro ao carregar horários.
+        </Alert>
+      ) : (
+        <DataGrid
+          rows={results}
+          columns={columns}
+          loading={isLoading}
+          autoHeight
+          density="compact"
+          pageSizeOptions={[25, 50, 100]}
+          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+          localeText={ptPT.components.MuiDataGrid.defaultProps.localeText}
+          sx={{ border: 0 }}
+        />
+      )}
 
       <HorarioFormModal
         open={modalOpen} onClose={() => setModalOpen(false)}
