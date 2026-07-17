@@ -35,6 +35,7 @@ import {
   BarChart as BarChartIcon,
   ShowChart as LineChartIcon,
   ErrorOutline as ErrorIcon,
+  Autorenew as RenovacaoIcon,
 } from '@mui/icons-material';
 import {
   BarChart, Bar, AreaChart, Area, LineChart, Line,
@@ -2768,11 +2769,14 @@ const AutocontroloResumoPanel = ({
 // (ver app/services/licenca_service.py), aqui visível sempre que se entra
 // no módulo, sem depender de ter visto a notificação.
 const LICENCA_STATUS = {
-  atraso:  { label: 'Expirada',   color: '#b71c1c', icon: ErrorIcon },
-  atencao: { label: 'A expirar',  color: '#ed6c02', icon: IncumpIcon },
-  ok:      { label: 'Válida',     color: '#2e7d32', icon: CheckCircleIcon },
+  atraso:    { label: 'Expirada',     color: '#b71c1c', icon: ErrorIcon },
+  atencao:   { label: 'A expirar',    color: '#ed6c02', icon: IncumpIcon },
+  // Expirada/quase, mas com renovação já submetida à APA (nº PL nas notas
+  // da instalação) — pendente de terceiros, não de ação nossa
+  renovacao: { label: 'Em renovação', color: '#f9a825', icon: RenovacaoIcon },
+  ok:        { label: 'Válida',       color: '#2e7d32', icon: CheckCircleIcon },
 };
-const LICENCA_SEVERITY = { atraso: 0, atencao: 1, ok: 2 };
+const LICENCA_SEVERITY = { atraso: 0, atencao: 1, renovacao: 2, ok: 3 };
 
 const LicencasResumoPanel = ({ entityList, selectedAssociado, onSelect }) => {
   const { data: licencasRes, isLoading } = useQuery({
@@ -2843,6 +2847,13 @@ const LicencasResumoPanel = ({ entityList, selectedAssociado, onSelect }) => {
                       ? `Expirou há ${-dias} dia${-dias === 1 ? '' : 's'}`
                       : `Expira em ${dias} dia${dias === 1 ? '' : 's'}`}
                 </Typography>
+                {l.status === 'renovacao' && l.memo && (
+                  <Tooltip title={l.memo.trim()}>
+                    <Typography variant="caption" color="text.secondary" component="div" noWrap>
+                      {l.memo.trim()}
+                    </Typography>
+                  </Tooltip>
+                )}
               </Box>
               <Chip
                 size="small" label={st?.label || '—'}

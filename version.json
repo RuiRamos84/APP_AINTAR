@@ -1,18 +1,18 @@
 ﻿{
-    "version":  "3.24.0",
-    "buildNumber":  148,
+    "version":  "3.25.1",
+    "buildNumber":  150,
     "components":  {
                        "frontend":  {
                                         "version":  "2.1.9",
                                         "lastDeploy":  "2026-04-22T12:03:16"
                                     },
                        "frontend-v2":  {
-                                           "version":  "3.24.0",
-                                           "lastDeploy":  "2026-07-16T13:48:44"
+                                           "version":  "3.25.1",
+                                           "lastDeploy":  "2026-07-17T16:17:19"
                                        },
                        "backend":  {
-                                       "version":  "3.19.0",
-                                       "lastDeploy":  "2026-07-16T13:48:44"
+                                       "version":  "3.20.1",
+                                       "lastDeploy":  "2026-07-17T16:17:19"
                                    },
                        "website":  {
                                        "version":  "1.0.0",
@@ -20,27 +20,6 @@
                                    }
                    },
     "history":  [
-                    {
-                        "build":  119,
-                        "date":  "2026-06-08T16:48:57",
-                        "operation":  "frontend-v2",
-                        "bumpType":  "patch",
-                        "by":  "rui.ramos",
-                        "versions":  {
-                                         "frontend-v2":  "3.14.9"
-                                     }
-                    },
-                    {
-                        "build":  120,
-                        "date":  "2026-06-09T10:27:08",
-                        "operation":  "backend-v2",
-                        "bumpType":  "patch",
-                        "by":  "rui.ramos",
-                        "versions":  {
-                                         "backend":  "3.10.9",
-                                         "frontend-v2":  "3.14.10"
-                                     }
-                    },
                     {
                         "build":  121,
                         "date":  "2026-06-19T09:59:23",
@@ -339,7 +318,29 @@
                                          "backend":  "3.19.0",
                                          "frontend-v2":  "3.24.0"
                                      }
+                    },
+                    {
+                        "build":  149,
+                        "date":  "2026-07-17T15:14:48",
+                        "operation":  "backend-v2",
+                        "bumpType":  "minor",
+                        "by":  "rui.ramos",
+                        "versions":  {
+                                         "backend":  "3.20.0",
+                                         "frontend-v2":  "3.25.0"
+                                     }
+                    },
+                    {
+                        "build":  150,
+                        "date":  "2026-07-17T16:17:19",
+                        "operation":  "backend-v2",
+                        "bumpType":  "patch",
+                        "by":  "rui.ramos",
+                        "versions":  {
+                                         "backend":  "3.20.1",
+                                         "frontend-v2":  "3.25.1"
+                                     }
                     }
                 ],
-    "lastDeployCommit":  "ee5de9ed3161e1ba1a30ef4a1b2e5f0b7cfb749f"
+    "lastDeployCommit":  "071de041335dc11e507dc608a626bc1c3b5f03c7"
 }
