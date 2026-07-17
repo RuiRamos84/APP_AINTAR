@@ -58,16 +58,19 @@ def list_licencas_etar(current_user: str):
 
 
 def _get_destinatarios(session):
-    """Utilizadores ativos com permissão operation.access (acesso a Gestão) e
-    email de entidade configurado."""
+    """Utilizadores ativos com a permissão dedicada licenca.alerts (migração
+    alert_permissions.sql atribuiu-a a quem tinha operation.access). O email
+    de entidade é opcional — sem ele o utilizador recebe só a notificação
+    in-app, ao contrário do critério antigo que o excluía por completo."""
     rows = session.execute(text("""
         SELECT c.pk, e.email, c.name
         FROM ts_client c
-        JOIN ts_entity e ON c.ts_entity = e.pk
+        LEFT JOIN ts_entity e ON c.ts_entity = e.pk
         WHERE COALESCE(c.active, 1) = 1
-          AND e.email IS NOT NULL AND e.email <> ''
-          AND (SELECT pk FROM ts_interface WHERE value = 'operation.access')
-              = ANY(COALESCE(c.interface, ARRAY[]::integer[]))
+          AND EXISTS (
+              SELECT 1 FROM ts_interface i
+              WHERE i.value = 'licenca.alerts' AND c.interface @> ARRAY[i.pk]
+          )
     """)).mappings().all()
     return [dict(r) for r in rows]
 
@@ -102,7 +105,7 @@ def check_licencas_expirando(app):
             destinatarios = _get_destinatarios(session)
 
         if not destinatarios:
-            logger.warning("[Licenças] Nenhum utilizador com operation.access/email — alertas não enviados.")
+            logger.warning("[Licenças] Nenhum utilizador com licenca.alerts — alertas não enviados.")
             return
 
         emails_unicos = {d['email'] for d in destinatarios if d.get('email')}

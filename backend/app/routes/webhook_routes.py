@@ -111,7 +111,8 @@ def sibs_webhook_test():
                         'payment_status': result.get('status', payment_status),
                         'payment_method': payment_method,
                         'notification_id': notification_id,
-                        'document_id': result.get('document_id')
+                        'document_id': result.get('document_id'),
+                        'initiator_user_id': result.get('initiator_user_id')
                     }
                 )
                 logger.info(
@@ -119,6 +120,9 @@ def sibs_webhook_test():
                 )
         except Exception as socket_err:
             logger.error(f"[TEST] Erro SocketIO: {socket_err}")
+
+        # Mesmo fluxo do webhook real: notificar contabilidade (payments.alerts)
+        payment_service.notify_payment_received(result, payment_method)
 
         return jsonify({
             "statusCode": "200",
@@ -229,13 +233,17 @@ def sibs_webhook():
                         'payment_status': result.get('status', payment_status),
                         'payment_method': payment_method,
                         'notification_id': notification_id,
-                        'document_id': result.get('document_id')
+                        'document_id': result.get('document_id'),
+                        'initiator_user_id': result.get('initiator_user_id')
                     }
                 )
                 logger.info(f"SocketIO notificação enviada para transaction {transaction_id}")
         except Exception as socket_err:
             logger.error(f"Erro ao enviar notificação SocketIO: {socket_err}")
             # Não falhar o webhook por causa do SocketIO
+
+        # Notificar contabilidade (payments.alerts) — best-effort, nunca falha o webhook
+        payment_service.notify_payment_received(result, payment_method)
 
         # 9. Responder com acknowledgment conforme documentação SIBS
         return jsonify({

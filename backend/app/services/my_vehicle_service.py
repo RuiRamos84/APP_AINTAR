@@ -5,6 +5,7 @@ from ..utils.utils import db_session_manager
 from app.utils.error_handler import api_error_handler, APIError
 from app.utils.logger import get_logger
 from .vehicle_service import add_vehicle_maintenance, set_vehicle_maintenance_status
+from .notification_service import get_alert_recipients
 
 logger = get_logger(__name__)
 
@@ -14,17 +15,9 @@ BREAKDOWN_STATUS_REPORTADA = 1
 
 
 def _get_fleet_managers(session) -> list:
-    """PKs dos utilizadores com fleet.edit (ou admin) — o "responsável" pela frota."""
-    rows = session.execute(text("""
-        SELECT DISTINCT c.pk
-        FROM ts_client c
-        WHERE c.ts_profile = 0
-           OR EXISTS (
-               SELECT 1 FROM ts_interface i
-               WHERE i.value = 'fleet.edit' AND c.interface @> ARRAY[i.pk]
-           )
-    """)).fetchall()
-    return [r.pk for r in rows]
+    """PKs de quem recebe alertas de frota — permissão dedicada fleet.alerts
+    (migração alert_permissions.sql atribuiu-a a quem tinha fleet.edit/admin)."""
+    return get_alert_recipients(session, 'fleet.alerts')
 
 
 def _notify_fleet_managers(user_ids: list, licence: str, reporter_name: str,

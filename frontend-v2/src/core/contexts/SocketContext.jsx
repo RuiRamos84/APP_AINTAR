@@ -26,12 +26,9 @@ import {
 } from 'react';
 import {
   connectSocket,
-  disconnectSocket,
   cleanupSocketSession,
   emitEvent,
   onEvent,
-  offEvent,
-  getSocket,
   isSocketConnected,
   SOCKET_EVENTS,
 } from '@/services/websocket/socketService';
@@ -40,12 +37,15 @@ import { notification } from '@/core/services/notification/notificationService';
 import apiClient from '@/services/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { NOTIFICATION_KEYS } from '@/core/constants/notificationKeys';
+import { isPendingTransaction, clearPendingTransaction } from '@/core/utils/pendingTransactions';
 
 const SocketContext = createContext(null);
 
 // Tipos cuja persistência vive na tabela central (após a unificação faseada).
-// Os restantes (payment, system) são só estado local efémero.
-const CENTRAL_TYPES = ['operacao', 'rh', 'task', 'document'];
+// Tem de cobrir TODOS os tipos que o backend persiste em tb_notification —
+// um tipo em falta aqui cai no caminho local do markAsRead e nunca fica lido.
+// Só 'system' resta como estado local efémero.
+const CENTRAL_TYPES = ['operacao', 'rh', 'task', 'document', 'licenca', 'fleet', 'payment'];
 
 /**
  * Socket Provider Component
@@ -58,23 +58,39 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  // Estado local: APENAS para tipos sem persistência própria ainda
-  // (document, payment, system). Operação/RH vivem no React Query.
+  // Estado local: APENAS para o tipo 'system' (efémero, sem persistência).
+  // Todos os outros tipos vivem na tabela central via React Query.
   const [localNotifications, setNotifications] = useState([]);
 
   // ========================================================================
   // FEED CENTRAL (React Query) — operação, RH
   // ========================================================================
 
-  const { data: centralFeed } = useQuery({
-    queryKey: NOTIFICATION_KEYS.central,
+  // Janela do feed: cresce em passos de 50 via loadMoreNotifications ("ver mais
+  // antigas" no NotificationCenter). O limit entra na queryKey, mas as
+  // invalidações por prefixo NOTIFICATION_KEYS.central continuam a apanhá-la.
+  const [feedLimit, setFeedLimit] = useState(50);
+
+  const { data: feedData } = useQuery({
+    queryKey: [...NOTIFICATION_KEYS.central, feedLimit],
     queryFn: async () => {
-      const res = await apiClient.get('/notifications/feed', { params: { limit: 50 } });
-      return res?.notifications || [];
+      const res = await apiClient.get('/notifications/feed', { params: { limit: feedLimit } });
+      return {
+        notifications: res?.notifications || [],
+        // Contagem do servidor: cobre TODA a tabela, não só a janela do feed
+        unreadCount: res?.unread_count ?? 0,
+      };
     },
     enabled: !!user?.user_id,
     staleTime: 1000 * 30,
+    // Ao alargar a janela, manter a lista anterior visível até chegar a nova
+    placeholderData: (prev) => prev,
   });
+  const centralFeed = feedData?.notifications;
+
+  const loadMoreNotifications = useCallback(() => setFeedLimit((l) => l + 50), []);
+  // Heurística sem COUNT extra: se a janela veio cheia, provavelmente há mais
+  const hasMoreNotifications = (centralFeed?.length ?? 0) >= feedLimit;
 
   const centralNotifications = useMemo(
     () =>
@@ -106,8 +122,14 @@ export const SocketProvider = ({ children }) => {
     [centralNotifications, localNotifications]
   );
 
-  // Calcular unreadCount a partir da lista combinada (evita dessincronização)
-  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+  // Badge do sino: não-lidas centrais vêm do servidor (contagem sobre toda a
+  // tabela, não só a janela de 50 do feed) + locais efémeras (payment/system).
+  const unreadCount = useMemo(() => {
+    const centralUnread =
+      feedData?.unreadCount ?? centralNotifications.filter((n) => !n.read).length;
+    const localUnread = localNotifications.filter((n) => !n.read).length;
+    return centralUnread + localUnread;
+  }, [feedData?.unreadCount, centralNotifications, localNotifications]);
 
   // Seletores por-entidade (fase B da unificação): badges por-item (TaskCard,
   // DocumentCard, ...) derivam destes Sets em vez de flags legados
@@ -269,23 +291,41 @@ export const SocketProvider = ({ children }) => {
   /**
    * Handler global para confirmação de pagamento SIBS (webhook).
    * Sempre activo — invalida caches mesmo com o modal fechado.
+   *
+   * O webhook é broadcast para todos os clientes ligados (não sabe o user),
+   * por isso só reagimos a transações iniciadas neste browser — os ecrãs
+   * abertos (MBWay/Multibanco/PaymentsTab) têm listeners próprios já
+   * filtrados por transaction_id/document_id.
    */
   const handlePaymentStatusUpdate = useCallback(
     (data) => {
-      const documentId = data.document_id;
-      if (!documentId) return;
+      // Dois critérios de "é meu": transação registada neste browser
+      // (sessionStorage, cobre a sessão do checkout) OU initiator_user_id
+      // do payload (hist_client de tb_sibs — cobre Multibanco pago dias
+      // depois, noutra sessão/dispositivo).
+      const isMine =
+        isPendingTransaction(data.transaction_id) ||
+        (data.initiator_user_id != null && data.initiator_user_id === user?.user_id);
+      if (!isMine) return;
 
-      // Invalidar tab de pagamentos do documento
-      queryClient.invalidateQueries({ queryKey: ['invoiceAmount', documentId] });
-      // Invalidar detalhe do documento (para reflectir estado na lista e no modal)
-      queryClient.invalidateQueries({ queryKey: ['documents', 'detail'] });
-      queryClient.invalidateQueries({ queryKey: ['documents', 'list'] });
+      if (['SUCCESS', 'DECLINED', 'EXPIRED'].includes(data.payment_status)) {
+        clearPendingTransaction(data.transaction_id);
+      }
+
+      const documentId = data.document_id;
+      if (documentId) {
+        // Invalidar tab de pagamentos do documento
+        queryClient.invalidateQueries({ queryKey: ['invoiceAmount', documentId] });
+        // Invalidar detalhe do documento (para reflectir estado na lista e no modal)
+        queryClient.invalidateQueries({ queryKey: ['documents', 'detail'] });
+        queryClient.invalidateQueries({ queryKey: ['documents', 'list'] });
+      }
 
       if (data.payment_status === 'SUCCESS') {
         notification.success('Pagamento confirmado com sucesso.');
       }
     },
-    [queryClient]
+    [queryClient, user?.user_id]
   );
 
   /**
@@ -322,72 +362,21 @@ export const SocketProvider = ({ children }) => {
   );
 
   /**
-   * Notificações de Operação/RH são persistidas na BD pelo backend antes
-   * de o evento chegar (ver Fase 1). Aqui não tocamos no estado local —
-   * apenas mostramos o toast imediato e invalidamos o feed central do
-   * React Query, que é a fonte de verdade para estes dois tipos.
+   * Handler único do evento genérico 'central_notification' (operação, RH,
+   * licenças, frota, tipos futuros). O backend persiste na tabela central
+   * ANTES de emitir (persist-then-emit), por isso aqui não há estado local —
+   * só toast+som imediatos e invalidação do feed React Query, que é a fonte
+   * de verdade. Tipos novos no backend não precisam de handler novo.
    */
-  const notifyAndRefreshCentral = useCallback(
-    (title, message) => {
+  const handleCentralNotification = useCallback(
+    (data) => {
       playNotificationSound();
-      notification.info(`${title}: ${message}`, { duration: 5000 });
+      notification.info(`${data.title || 'Notificação'}: ${data.message || ''}`, {
+        duration: 5000,
+      });
       queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central });
     },
     [playNotificationSound, queryClient]
-  );
-
-  /**
-   * Handler para notificações do módulo RH
-   * participacao_workflow → colaborador notificado de mudança de estado
-   * participacao_criada   → participação criada automaticamente após regresso
-   */
-  const handleRhNotification = useCallback(
-    (data) => {
-      notifyAndRefreshCentral(data.title || 'Recursos Humanos', data.message || '');
-    },
-    [notifyAndRefreshCentral]
-  );
-
-  /**
-   * Handler para alertas de renovação de licenças de ETAR (módulo Gestão)
-   * licenca_expirar  → licença a aproximar-se do fim (90/60/30/15/7/1 dias)
-   * licenca_expirada → licença já expirada (repete a cada 7 dias)
-   */
-  const handleLicencaNotification = useCallback(
-    (data) => {
-      notifyAndRefreshCentral(data.title || 'Licença', data.message || '');
-    },
-    [notifyAndRefreshCentral]
-  );
-
-  /**
-   * Handler para notificações de operações (módulo de operação)
-   * nova_tarefa → operador recebe tarefa atribuída
-   * tarefa_executada → supervisor é notificado de execução
-   * tarefa_validada → operador é notificado de validação
-   */
-  const handleOperacaoNotification = useCallback(
-    (data) => {
-      const notifTypeMap = {
-        nova_tarefa: 'Nova tarefa atribuída',
-        tarefa_executada: 'Tarefa executada',
-        tarefa_validada: 'Tarefa validada',
-      };
-      const title = data.title || notifTypeMap[data.notification_type] || 'Operação';
-      notifyAndRefreshCentral(title, data.message || '');
-    },
-    [notifyAndRefreshCentral]
-  );
-
-  /**
-   * Handler para notificações de frota (módulo Frota)
-   * avaria_reportada → condutor reportou avaria via "A Minha Viatura"
-   */
-  const handleFleetNotification = useCallback(
-    (data) => {
-      notifyAndRefreshCentral(data.title || 'Frota', data.message || '');
-    },
-    [notifyAndRefreshCentral]
   );
 
   /**
@@ -421,17 +410,13 @@ export const SocketProvider = ({ children }) => {
         return;
       }
 
+      // Tipos locais (payment/system): só estado em memória — não há emit
+      // para o servidor porque não existe handler backend para este evento.
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
-
-      // Emitir para servidor Socket.IO
-      emitEvent(SOCKET_EVENTS.MARK_NOTIFICATION_READ, {
-        notificationId,
-        userId: user?.user_id,
-      });
     },
-    [notifications, user?.user_id, markCentralReadMutation]
+    [notifications, markCentralReadMutation]
   );
 
   /**
@@ -440,7 +425,6 @@ export const SocketProvider = ({ children }) => {
    */
   const markAllAsRead = useCallback(() => {
     const unread = notifications.filter((n) => !n.read);
-    const unreadIds = unread.map((n) => n.id);
 
     if (unread.some((n) => CENTRAL_TYPES.includes(n.type))) {
       markAllCentralReadMutation.mutate();
@@ -448,16 +432,8 @@ export const SocketProvider = ({ children }) => {
 
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
-    // Emitir para servidor Socket.IO
-    if (unreadIds.length > 0) {
-      emitEvent(SOCKET_EVENTS.MARK_ALL_NOTIFICATIONS_READ, {
-        notificationIds: unreadIds,
-        userId: user?.user_id,
-      });
-    }
-
-    notification.success(`${unreadIds.length} notificações marcadas como lidas`);
-  }, [notifications, user?.user_id, markAllCentralReadMutation]);
+    notification.success('Notificações marcadas como lidas');
+  }, [notifications, markAllCentralReadMutation]);
 
   /**
    * Limpar notificações antigas (mais de 7 dias)
@@ -494,11 +470,8 @@ export const SocketProvider = ({ children }) => {
         setSocket(socketInstance);
         setIsConnected(true);
 
-        // Entrar na sala do utilizador
-        emit(SOCKET_EVENTS.JOIN, {
-          userId: user.user_id,
-          sessionId: user.session_id,
-        });
+        // NOTA: não emitimos 'join' — o backend faz join_room(user_{id})
+        // no próprio on_connect; um emit 'join' cairia num handler inexistente.
 
         // Registar event listeners
         const removeNewNotif = onEvent(SOCKET_EVENTS.NEW_NOTIFICATION, handleNewNotification);
@@ -507,10 +480,10 @@ export const SocketProvider = ({ children }) => {
           'task_notifications_updated',
           handleTaskNotificationsUpdated
         );
-        const removeOperacaoNotif = onEvent('operacao_notification', handleOperacaoNotification);
-        const removeRhNotif = onEvent('rh_notification', handleRhNotification);
-        const removeLicencaNotif = onEvent('licenca_notification', handleLicencaNotification);
-        const removeFleetNotif = onEvent('fleet_notification', handleFleetNotification);
+        const removeCentralNotif = onEvent(
+          SOCKET_EVENTS.CENTRAL_NOTIFICATION,
+          handleCentralNotification
+        );
         const removePaymentUpdate = onEvent('payment_status_update', handlePaymentStatusUpdate);
 
         // Deteção automática de manutenção: o Enable-MaintenanceMode reinicia
@@ -559,10 +532,7 @@ export const SocketProvider = ({ children }) => {
           removeNewNotif,
           removeTaskNotif,
           removeTaskNotifUpdated,
-          removeOperacaoNotif,
-          removeRhNotif,
-          removeLicencaNotif,
-          removeFleetNotif,
+          removeCentralNotif,
           removePaymentUpdate,
           removeConnect,
           removeDisconnect,
@@ -593,10 +563,7 @@ export const SocketProvider = ({ children }) => {
     handleNewNotification,
     handleTaskNotification,
     handleTaskNotificationsUpdated,
-    handleOperacaoNotification,
-    handleRhNotification,
-    handleLicencaNotification,
-    handleFleetNotification,
+    handleCentralNotification,
     handlePaymentStatusUpdate,
   ]);
 
@@ -656,6 +623,8 @@ export const SocketProvider = ({ children }) => {
     markAsRead,
     markAllAsRead,
     clearOldNotifications,
+    loadMoreNotifications,
+    hasMoreNotifications,
 
     // Seletores por-entidade para badges por-item (TaskCard, DocumentCard, ...)
     unreadTaskIds,

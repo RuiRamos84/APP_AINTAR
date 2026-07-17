@@ -1,4 +1,5 @@
 import api from '../../../services/api/client';
+import { registerPendingTransaction } from '@/core/utils/pendingTransactions';
 
 class PaymentService {
     /**
@@ -14,6 +15,9 @@ class PaymentService {
         if (!response?.success) {
             throw new Error(response?.error || 'Erro no checkout SIBS');
         }
+        // O webhook 'payment_status_update' é broadcast para todos os clientes;
+        // registar a transação permite ao SocketContext reagir só às deste browser.
+        registerPendingTransaction(response?.transaction_id);
         return response;
     }
 

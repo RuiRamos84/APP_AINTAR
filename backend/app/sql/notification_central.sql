@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS tb_notification (
 CREATE INDEX IF NOT EXISTS ix_tb_notification_client_unread
     ON tb_notification (ts_client, read);
 
+-- Serve o feed (WHERE ts_client = fs_client() ORDER BY hist_time DESC LIMIT n);
+-- o índice acima só serve a contagem de não-lidas. (2026-07-17)
+CREATE INDEX IF NOT EXISTS ix_tb_notification_client_time
+    ON tb_notification (ts_client, hist_time DESC);
+
 -- Leitura: cada utilizador só vê as suas próprias notificações.
 CREATE OR REPLACE VIEW vbl_notification AS
 SELECT pk, type, notification_type, title, message, route, metadata, read, hist_time
@@ -69,15 +74,17 @@ begin
     return c;
 end; $function$;
 
--- Purga diária (job em backend/app/scheduler.py, 04:00) de notificações
--- lidas com mais de 90 dias, para a tabela não crescer indefinidamente.
+-- Purga diária (job em backend/app/scheduler.py, 04:00):
+--   lidas > 90 dias; não-lidas > 180 dias (2026-07-17 — sem este segundo
+--   critério, utilizadores inativos acumulavam não-lidas para sempre).
 CREATE OR REPLACE FUNCTION "fbf_notification$purge"()
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER AS $function$
 declare
     c integer;
 begin
     delete from tb_notification
-    where read = 1 and hist_time < current_timestamp - interval '90 days';
+    where (read = 1 and hist_time < current_timestamp - interval '90 days')
+       or (read = 0 and hist_time < current_timestamp - interval '180 days');
     get diagnostics c = row_count;
     return c;
 end; $function$;

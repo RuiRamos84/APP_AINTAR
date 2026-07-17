@@ -150,7 +150,7 @@ class SocketIOEvents(Namespace):
                 central_notification_service.add(
                     ts_client=recipient_id, type_='task', notification_type=notification_type,
                     title=notification_data.get('taskName', 'Tarefa'), message=message,
-                    route=f"/tasks?taskId={task_id}",
+                    route=f"/intern/tasks?taskId={task_id}",
                     metadata={'task_id': task_id},
                 )
             except Exception as central_err:
@@ -247,100 +247,88 @@ class SocketIOEvents(Namespace):
 
 
     # =========================================================================
-    # OPERATION (OPERACAO) NOTIFICATION HANDLERS
+    # CENTRAL NOTIFICATION — caminho único para tipos persistidos
     # =========================================================================
+
+    def emit_central_notification(self, user_ids: list, type_: str,
+                                  notification_type: str, title: str,
+                                  message: str, route: str, metadata: dict = None):
+        """
+        Persiste na tabela central e emite o evento genérico 'central_notification'
+        para a room de cada destinatário. Tipos novos entram por aqui — não
+        precisam de evento nem de handler próprios no frontend-v2 (handler único
+        faz toast+som e invalida o feed React Query).
+
+        Persist-then-emit: a linha tem de estar commitada antes do push, senão
+        o refetch do cliente chega antes do INSERT e a notificação só aparece
+        após reload. Emitir sempre para a room (inofensivo se vazia): o gate
+        por connected_users tinha janelas de falso-negativo (reconexão,
+        múltiplos separadores) que perdiam notificações.
+        """
+        import datetime
+        for user_id in user_ids:
+            if user_id is None:
+                continue
+            try:
+                pk = central_notification_service.add(
+                    ts_client=user_id, type_=type_, notification_type=notification_type,
+                    title=title, message=message, route=route, metadata=metadata,
+                )
+                self.socketio.emit('central_notification', {
+                    'notification_id': pk,
+                    'type': type_,
+                    'notification_type': notification_type,
+                    'title': title,
+                    'message': message,
+                    'timestamp': datetime.datetime.now().isoformat(),
+                    'route': route,
+                    'metadata': metadata or {},
+                }, room=f'user_{user_id}', namespace='/')
+                logger.info(f"[CentralNotif] {type_}/{notification_type} → user {user_id}")
+            except Exception as e:
+                logger.error(f"[CentralNotif] Erro ao emitir {type_} para user {user_id}: {e}")
 
     def emit_operacao_notification(self, user_ids: list, notification_type: str,
                                    title: str, message: str,
                                    meta_pk: int = None, operacao_pk: int = None):
         """
-        Emite notificação de operação para utilizadores específicos.
+        Notificação de operação.
 
         notification_type:
           - 'nova_tarefa'      → nova meta atribuída ao operador
           - 'tarefa_executada' → operador concluiu execução (notifica supervisor)
           - 'tarefa_validada'  → supervisor validou execução (notifica operador)
         """
-        import datetime
-        route = '/operation/supervisor'
-        for user_id in user_ids:
-            if user_id is None:
-                continue
-            try:
-                # Persiste antes de emitir: garante que a notificação sobrevive
-                # mesmo que o destinatário esteja offline no momento do evento.
-                pk = central_notification_service.add(
-                    ts_client=user_id, type_='operacao', notification_type=notification_type,
-                    title=title, message=message, route=route,
-                    metadata={'meta_pk': meta_pk, 'operacao_pk': operacao_pk},
-                )
-                notification_data = {
-                    'notification_id': pk,
-                    'type': 'operacao',
-                    'notification_type': notification_type,
-                    'title': title,
-                    'message': message,
-                    'timestamp': datetime.datetime.now().isoformat(),
-                    'meta_pk': meta_pk,
-                    'operacao_pk': operacao_pk,
-                    'route': route,
-                }
-                room = f'user_{user_id}'
-                # Emitir sempre para a room: socketio.emit é inofensivo se vazia,
-                # e o gate por connected_users tem janelas de falso-negativo
-                # (reconexão, múltiplos separadores) que perdiam a notificação.
-                self.socketio.emit('operacao_notification', notification_data,
-                                   room=room, namespace='/')
-                logger.info(f"[OperaçãoNotif] {notification_type} → user {user_id}")
-            except Exception as e:
-                logger.error(f"[OperaçãoNotif] Erro ao emitir para user {user_id}: {e}")
-
+        # nova_tarefa é dirigida ao operador (ecrã de tarefas); os restantes
+        # tipos notificam o supervisor. A rota persistida tem de refletir isso
+        # para a navegação genérica por `route` no NotificationCenter.
+        route = '/operation/tasks' if notification_type == 'nova_tarefa' else '/operation/supervisor'
+        self.emit_central_notification(
+            user_ids, 'operacao', notification_type, title, message, route,
+            metadata={'meta_pk': meta_pk, 'operacao_pk': operacao_pk},
+        )
 
     def emit_licenca_notification(self, user_ids: list, notification_type: str,
                                    title: str, message: str, tb_etar: int = None):
         """
-        Emite notificação de renovação de licença (APA) de uma ETAR para
+        Notificação de renovação de licença (APA) de uma ETAR para
         utilizadores com acesso ao módulo Gestão.
 
         notification_type:
           - 'licenca_expirar'  → licença a aproximar-se do fim (90/60/30/15/7/1 dias)
           - 'licenca_expirada' → licença já expirada (repete a cada 7 dias)
         """
-        import datetime
-        route = '/etar'
-        for user_id in user_ids:
-            if user_id is None:
-                continue
-            try:
-                pk = central_notification_service.add(
-                    ts_client=user_id, type_='licenca', notification_type=notification_type,
-                    title=title, message=message, route=route,
-                    metadata={'tb_etar': tb_etar},
-                )
-                notification_data = {
-                    'notification_id': pk,
-                    'type': 'licenca',
-                    'notification_type': notification_type,
-                    'title': title,
-                    'message': message,
-                    'timestamp': datetime.datetime.now().isoformat(),
-                    'tb_etar': tb_etar,
-                    'route': route,
-                }
-                room = f'user_{user_id}'
-                self.socketio.emit('licenca_notification', notification_data,
-                                   room=room, namespace='/')
-                logger.info(f"[LicençaNotif] {notification_type} → user {user_id}")
-            except Exception as e:
-                logger.error(f"[LicençaNotif] Erro ao emitir para user {user_id}: {e}")
-
+        self.emit_central_notification(
+            user_ids, 'licenca', notification_type, title, message, '/etar',
+            metadata={'tb_etar': tb_etar},
+        )
 
     def emit_fleet_notification(self, user_ids: list, notification_type: str,
                                  title: str, message: str,
                                  tb_vehicle: int = None, maintenance_pk: int = None,
                                  tt_maintenancetype: int = None):
         """
-        Emite notificação de frota para utilizadores com fleet.edit (ou admin).
+        Notificação de frota para utilizadores com fleet.edit (ou admin).
 
         notification_type:
           - 'avaria_reportada' → condutor reportou avaria via "A Minha Viatura"
@@ -355,79 +343,28 @@ class SocketIOEvents(Namespace):
             também para o próprio job saber se já alertou esta viatura+tipo
             (consulta o histórico em tb_notification via metadata).
         """
-        import datetime
-        route = '/fleet'
-        for user_id in user_ids:
-            if user_id is None:
-                continue
-            try:
-                pk = central_notification_service.add(
-                    ts_client=user_id, type_='fleet', notification_type=notification_type,
-                    title=title, message=message, route=route,
-                    metadata={
-                        'tb_vehicle': tb_vehicle, 'maintenance_pk': maintenance_pk,
-                        'tt_maintenancetype': tt_maintenancetype,
-                    },
-                )
-                notification_data = {
-                    'notification_id': pk,
-                    'type': 'fleet',
-                    'notification_type': notification_type,
-                    'title': title,
-                    'message': message,
-                    'timestamp': datetime.datetime.now().isoformat(),
-                    'tb_vehicle': tb_vehicle,
-                    'maintenance_pk': maintenance_pk,
-                    'tt_maintenancetype': tt_maintenancetype,
-                    'route': route,
-                }
-                room = f'user_{user_id}'
-                self.socketio.emit('fleet_notification', notification_data,
-                                   room=room, namespace='/')
-                logger.info(f"[FrotaNotif] {notification_type} → user {user_id}")
-            except Exception as e:
-                logger.error(f"[FrotaNotif] Erro ao emitir para user {user_id}: {e}")
-
-
-    # =========================================================================
-    # RH (RECURSOS HUMANOS) NOTIFICATION HANDLERS
-    # =========================================================================
+        self.emit_central_notification(
+            user_ids, 'fleet', notification_type, title, message, '/fleet',
+            metadata={
+                'tb_vehicle': tb_vehicle, 'maintenance_pk': maintenance_pk,
+                'tt_maintenancetype': tt_maintenancetype,
+            },
+        )
 
     def emit_rh_notification(self, user_ids: list, notification_type: str,
                               title: str, message: str,
                               route: str = '/rh/pessoal/faltas'):
         """
-        Emite notificação do módulo RH para utilizadores específicos.
+        Notificação do módulo RH.
 
         notification_type:
           - 'participacao_workflow' → estado da participação alterado
           - 'participacao_criada'   → participação criada automaticamente (regresso)
           - 'ponto_registo'         → ponto registado por admin em nome do colaborador
         """
-        import datetime
-        for user_id in user_ids:
-            if user_id is None:
-                continue
-            try:
-                pk = central_notification_service.add(
-                    ts_client=user_id, type_='rh', notification_type=notification_type,
-                    title=title, message=message, route=route,
-                )
-                notification_data = {
-                    'notification_id': pk,
-                    'type': 'rh',
-                    'notification_type': notification_type,
-                    'title': title,
-                    'message': message,
-                    'timestamp': datetime.datetime.now().isoformat(),
-                    'route': route,
-                }
-                room = f'user_{user_id}'
-                self.socketio.emit('rh_notification', notification_data,
-                                   room=room, namespace='/')
-                logger.info(f"[RH Notif] {notification_type} → user {user_id}")
-            except Exception as e:
-                logger.error(f"[RH Notif] Erro ao emitir para user {user_id}: {e}")
+        self.emit_central_notification(
+            user_ids, 'rh', notification_type, title, message, route,
+        )
 
 
 def register_socket_events(socketio):

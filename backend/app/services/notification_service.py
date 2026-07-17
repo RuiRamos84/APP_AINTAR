@@ -8,6 +8,27 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def get_alert_recipients(session, permission: str) -> list:
+    """
+    PKs dos utilizadores ativos com a permissão de alerta indicada
+    (ts_interface.value — ex: 'payments.alerts', 'fleet.alerts').
+
+    Quem recebe alertas de um módulo é controlado por permissão dedicada,
+    atribuível na UI de permissões — nunca por nomes/PKs hardcoded no código.
+    Devolve [] se a permissão ainda não existir na BD (migração por aplicar).
+    """
+    rows = session.execute(text("""
+        SELECT c.pk
+        FROM ts_client c
+        WHERE COALESCE(c.active, 1) = 1
+          AND EXISTS (
+              SELECT 1 FROM ts_interface i
+              WHERE i.value = :permission AND c.interface @> ARRAY[i.pk]
+          )
+    """), {'permission': permission}).fetchall()
+    return [r.pk for r in rows]
+
+
 class CentralNotificationService:
     """
     Serviço para a tabela central de notificações (tb_notification),
@@ -66,12 +87,12 @@ class CentralNotificationService:
         a tabela central sincronizada (fase C da unificação).
         """
         with db_session_manager(current_user) as session:
-            rows = session.execute(text("""
-                SELECT pk FROM vbl_notification
+            # Uma só ida à BD: a query chama fbf_notification$read por linha
+            # encontrada — mantém a escrita via fbf_* sem o N+1 do loop antigo.
+            session.execute(text("""
+                SELECT "fbf_notification$read"(pk) FROM vbl_notification
                 WHERE type = :type AND read = 0 AND metadata->>:entity_key = :entity_id
-            """), {'type': type_, 'entity_key': entity_key, 'entity_id': str(entity_id)}).scalars().all()
-            for pk in rows:
-                session.execute(text("SELECT fbf_notification$read(:pk)"), {'pk': pk})
+            """), {'type': type_, 'entity_key': entity_key, 'entity_id': str(entity_id)})
 
 
 class NotificationService:

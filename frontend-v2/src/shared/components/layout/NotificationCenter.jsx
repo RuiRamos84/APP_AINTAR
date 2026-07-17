@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Badge,
   IconButton,
@@ -6,9 +6,8 @@ import {
   Typography,
   Box,
   List,
-  ListItem,
+  ListItemButton,
   ListItemText,
-  Divider,
   Button,
   Tooltip,
   useTheme,
@@ -26,11 +25,27 @@ import InfoIcon from '@mui/icons-material/Info';
 import CircleIcon from '@mui/icons-material/Circle';
 import EngineeringIcon from '@mui/icons-material/Engineering';
 import BadgeIcon from '@mui/icons-material/Badge';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import EuroIcon from '@mui/icons-material/Euro';
 import { useSocket } from '@/core/contexts/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { IS_PORTAL } from '@/core/config/appContext';
+
+// Tabs config-driven: tipo novo na central = uma linha aqui.
+// backofficeOnly esconde a tab no portal de clientes.
+const NOTIFICATION_TABS = [
+  { key: 'all', label: 'Todas', type: null },
+  { key: 'task', label: 'Tarefas', type: 'task', backofficeOnly: true },
+  { key: 'operacao', label: 'Operações', type: 'operacao', backofficeOnly: true },
+  { key: 'document', label: 'Docs', type: 'document' },
+  { key: 'rh', label: 'RH', type: 'rh', backofficeOnly: true },
+  { key: 'licenca', label: 'Licenças', type: 'licenca', backofficeOnly: true },
+  { key: 'fleet', label: 'Frota', type: 'fleet', backofficeOnly: true },
+  { key: 'payment', label: 'Pagamentos', type: 'payment', backofficeOnly: true },
+];
 
 export const NotificationCenter = () => {
   const theme = useTheme();
@@ -43,37 +58,27 @@ export const NotificationCenter = () => {
     unreadCount,
     markAsRead,
     markAllAsRead,
+    loadMoreNotifications,
+    hasMoreNotifications,
   } = useSocket();
 
   const handleOpen = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
-  // Filter notifications based on tab
-  const getFilteredNotifications = () => {
-    // Ajustar índices se estivermos no portal (onde as tabs 1 e 2 não existem)
-    if (IS_PORTAL) {
-      switch (tabValue) {
-        case 0: return notifications;
-        case 1: return notifications.filter((n) => n.type === 'document');
-        default: return notifications;
-      }
-    }
+  const tabs = NOTIFICATION_TABS.filter((t) => !IS_PORTAL || !t.backofficeOnly);
+  const activeTab = tabs[tabValue] ?? tabs[0];
+  const filteredNotifications = activeTab.type
+    ? notifications.filter((n) => n.type === activeTab.type)
+    : notifications;
 
-    switch (tabValue) {
-      case 0: return notifications;
-      case 1: return notifications.filter((n) => n.type === 'task');
-      case 2: return notifications.filter((n) => n.type === 'operacao');
-      case 3: return notifications.filter((n) => n.type === 'document');
-      case 4: return notifications.filter((n) => n.type === 'rh');
-      default: return notifications;
+  // Não-lidas por tipo numa só passagem — alimenta os chips das tabs
+  const unreadByType = useMemo(() => {
+    const counts = {};
+    for (const n of notifications) {
+      if (!n.read) counts[n.type] = (counts[n.type] || 0) + 1;
     }
-  };
-
-  const filteredNotifications = getFilteredNotifications();
-  const unreadTasks = notifications.filter((n) => n.type === 'task' && !n.read).length;
-  const unreadOperacoes = notifications.filter((n) => n.type === 'operacao' && !n.read).length;
-  const unreadDocs = notifications.filter((n) => n.type === 'document' && !n.read).length;
-  const unreadRh = notifications.filter((n) => n.type === 'rh' && !n.read).length;
+    return counts;
+  }, [notifications]);
 
   const handleNotificationClick = (notif) => {
     markAsRead(notif.id);
@@ -92,6 +97,10 @@ export const NotificationCenter = () => {
       navigate(IS_PORTAL ? `/pedidos/${notif.documentId}` : `/documents?id=${notif.documentId}`);
     } else if (notif.type === 'rh') {
       navigate(notif.route || '/rh/pessoal/faltas');
+    } else if (notif.route) {
+      // Tipos sem tratamento específico (licenca, fleet, futuros): a própria
+      // notificação transporta a rota de destino, persistida pelo backend.
+      navigate(notif.route);
     }
   };
 
@@ -105,6 +114,12 @@ export const NotificationCenter = () => {
         return <ArticleIcon color="secondary" />;
       case 'rh':
         return <BadgeIcon sx={{ color: '#be123c' }} />;
+      case 'licenca':
+        return <WorkspacePremiumIcon sx={{ color: '#2e7d32' }} />;
+      case 'fleet':
+        return <DirectionsCarIcon sx={{ color: '#455a64' }} />;
+      case 'payment':
+        return <EuroIcon sx={{ color: '#ed6c02' }} />;
       case 'system':
         return <InfoIcon color="info" />;
       default:
@@ -121,7 +136,7 @@ export const NotificationCenter = () => {
   const formatTime = (timestamp) => {
     try {
       return formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: pt });
-    } catch (e) {
+    } catch {
       return 'agora mesmo';
     }
   };
@@ -218,44 +233,27 @@ export const NotificationCenter = () => {
               },
             }}
           >
-            <Tab label={`Todas (${notifications.length})`} />
-            {!IS_PORTAL && (
-              <Tab
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    Tarefas
-                    {unreadTasks > 0 && <Chip label={unreadTasks} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
-                  </Box>
-                }
-              />
-            )}
-            {!IS_PORTAL && (
-              <Tab
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    Operações
-                    {unreadOperacoes > 0 && <Chip label={unreadOperacoes} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
-                  </Box>
-                }
-              />
-            )}
-            <Tab
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  Docs
-                  {unreadDocs > 0 && <Chip label={unreadDocs} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
-                </Box>
-              }
-            />
-            {!IS_PORTAL && (
-              <Tab
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    RH
-                    {unreadRh > 0 && <Chip label={unreadRh} size="small" color="error" sx={{ height: 16, fontSize: '0.65rem' }} />}
-                  </Box>
-                }
-              />
+            {tabs.map((t) =>
+              t.type ? (
+                <Tab
+                  key={t.key}
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {t.label}
+                      {(unreadByType[t.type] || 0) > 0 && (
+                        <Chip
+                          label={unreadByType[t.type]}
+                          size="small"
+                          color="error"
+                          sx={{ height: 16, fontSize: '0.65rem' }}
+                        />
+                      )}
+                    </Box>
+                  }
+                />
+              ) : (
+                <Tab key={t.key} label={`${t.label} (${notifications.length})`} />
+              )
             )}
           </Tabs>
         </Box>
@@ -268,9 +266,8 @@ export const NotificationCenter = () => {
             </Box>
           ) : (
             filteredNotifications.map((notification) => (
-              <ListItem
+              <ListItemButton
                 key={notification.id}
-                button
                 onClick={() => handleNotificationClick(notification)}
                 alignItems="flex-start"
                 sx={{
@@ -318,8 +315,19 @@ export const NotificationCenter = () => {
                   }
                   disableTypography
                 />
-              </ListItem>
+              </ListItemButton>
             ))
+          )}
+          {hasMoreNotifications && filteredNotifications.length > 0 && (
+            <Box sx={{ p: 1, textAlign: 'center' }}>
+              <Button
+                size="small"
+                onClick={loadMoreNotifications}
+                sx={{ textTransform: 'none', borderRadius: 2 }}
+              >
+                Ver mais antigas
+              </Button>
+            </Box>
           )}
         </List>
       </Menu>

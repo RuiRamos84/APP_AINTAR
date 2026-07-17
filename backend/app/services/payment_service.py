@@ -1295,15 +1295,24 @@ class PaymentService:
                     "transaction_id": transaction_id
                 })
 
-                # Obter invoice_pk e document_id associados
+                # Obter invoice_pk, document_id e dados para notificações
                 invoice_info = db.execute(text("""
-                    SELECT invoice_pk, tb_document
+                    SELECT invoice_pk, tb_document, regnumber, amount
                     FROM vbl_sibs
                     WHERE transaction_id = :transaction_id
                 """), {"transaction_id": transaction_id}).fetchone()
 
                 invoice_pk = invoice_info[0] if invoice_info else None
                 document_id = invoice_info[1] if invoice_info else None
+                regnumber = invoice_info[2] if invoice_info else None
+                amount = invoice_info[3] if invoice_info else None
+
+                # Quem iniciou o checkout (hist_client de tb_sibs) — permite ao
+                # frontend distinguir o dono do pagamento no broadcast do socket
+                # mesmo noutra sessão/dispositivo (ex: Multibanco pago dias depois).
+                initiator_user_id = db.execute(text(
+                    "SELECT hist_client FROM tb_sibs WHERE transaction_id = :transaction_id"
+                ), {"transaction_id": transaction_id}).scalar()
 
                 # Se sucesso, actualizar invoice
                 if internal_status == PaymentStatus.SUCCESS and document_id:
@@ -1355,12 +1364,72 @@ class PaymentService:
                 "success": True,
                 "transaction_id": transaction_id,
                 "status": internal_status,
-                "document_id": document_id
+                "document_id": document_id,
+                "regnumber": regnumber,
+                "amount": amount,
+                "initiator_user_id": initiator_user_id
             }
 
         except Exception as e:
             logger.error(f"Erro no webhook: {e}")
             raise
+
+    def notify_payment_received(self, result: dict, payment_method: str = None):
+        """
+        Notifica a contabilidade (permissão payments.alerts) de que um pagamento
+        confirmado por webhook deu entrada. Best-effort: nunca falha o webhook.
+
+        Dedup por transaction_id contra o histórico da tabela central — a SIBS
+        pode reenviar o mesmo webhook várias vezes.
+        """
+        transaction_id = result.get('transaction_id')
+        if not transaction_id or result.get('status') != PaymentStatus.SUCCESS:
+            return
+        try:
+            from flask import current_app
+            from app.services.notification_service import get_alert_recipients
+            socketio_events = current_app.extensions.get('socketio_events')
+            if not socketio_events:
+                logger.warning("[PagamentoNotif] socketio_events indisponível — notificação não enviada.")
+                return
+
+            with db_system_session() as db:
+                ja_notificado = db.execute(text("""
+                    SELECT 1 FROM tb_notification
+                    WHERE type = 'payment' AND metadata->>'transaction_id' = :tid
+                    LIMIT 1
+                """), {'tid': str(transaction_id)}).scalar()
+                if ja_notificado:
+                    return
+                recipients = get_alert_recipients(db, 'payments.alerts')
+
+            if not recipients:
+                logger.info("[PagamentoNotif] Nenhum utilizador com payments.alerts — notificação não enviada.")
+                return
+
+            pedido = result.get('regnumber') or (
+                f"#{result.get('document_id')}" if result.get('document_id') else 'desconhecido'
+            )
+            valor = result.get('amount')
+            valor_txt = f"{float(valor):.2f}".replace('.', ',') + ' €' if valor is not None else None
+            metodo_txt = {'MBWAY': 'MB WAY', 'REFERENCE': 'Multibanco'}.get(payment_method, payment_method)
+            detalhes = ' — '.join(p for p in (valor_txt, metodo_txt) if p)
+            mensagem = f"O pagamento do pedido {pedido} deu entrada" + (f" ({detalhes})." if detalhes else ".")
+
+            socketio_events.emit_central_notification(
+                user_ids=recipients,
+                type_='payment',
+                notification_type='pagamento_recebido',
+                title=f"Pagamento recebido — {pedido}",
+                message=mensagem,
+                route='/payments',
+                metadata={
+                    'transaction_id': str(transaction_id),
+                    'document_id': result.get('document_id'),
+                },
+            )
+        except Exception as e:
+            logger.error(f"[PagamentoNotif] Erro ao notificar contabilidade: {e}", exc_info=True)
 
 
     # ============================================================

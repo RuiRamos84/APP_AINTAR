@@ -11,6 +11,7 @@ from datetime import date
 from sqlalchemy.sql import text
 from ..utils.utils import db_system_session
 from app.utils.logger import get_logger
+from .notification_service import get_alert_recipients
 
 logger = get_logger(__name__)
 
@@ -20,18 +21,9 @@ LIMIARES_ALERTA = {90, 60, 30, 15, 7, 1, 0}
 
 
 def _get_rh_admins(session) -> list:
-    """PKs dos utilizadores com rh.admin (ou admin de sistema) — mesmo padrão
-    de _get_fleet_managers (my_vehicle_service.py)."""
-    rows = session.execute(text("""
-        SELECT DISTINCT c.pk
-        FROM ts_client c
-        WHERE c.ts_profile = 0
-           OR EXISTS (
-               SELECT 1 FROM ts_interface i
-               WHERE i.value = 'rh.admin' AND c.interface @> ARRAY[i.pk]
-           )
-    """)).fetchall()
-    return [r.pk for r in rows]
+    """PKs de quem recebe alertas RH — permissão dedicada rh.alerts
+    (migração alert_permissions.sql atribuiu-a a quem tinha rh.admin/admin)."""
+    return get_alert_recipients(session, 'rh.alerts')
 
 
 def _dias_restantes(data_limite):

@@ -281,36 +281,6 @@ export const offEvent = (eventName, callback) => {
 };
 
 /**
- * Entrar numa sala (room)
- *
- * @param {string} roomName - Nome da sala
- */
-export const joinRoom = (roomName) => {
-  if (!socketInstance?.connected) {
-    console.warn('[SocketService] Cannot join room, socket not connected');
-    return false;
-  }
-
-  emitEvent('join', { room: roomName });
-  return true;
-};
-
-/**
- * Sair de uma sala (room)
- *
- * @param {string} roomName - Nome da sala
- */
-export const leaveRoom = (roomName) => {
-  if (!socketInstance?.connected) {
-    console.warn('[SocketService] Cannot leave room, socket not connected');
-    return false;
-  }
-
-  emitEvent('leave', { room: roomName });
-  return true;
-};
-
-/**
  * Obter instância atual do socket
  *
  * @returns {Socket|null}
@@ -354,8 +324,11 @@ export const reconnectSocket = () => {
 // correspondente em frontend-v2 (CONNECT_ERROR, NOTIFICATION_UPDATE,
 // NOTIFICATION_COUNT, NOTIFICATIONS_CLEARED, DOCUMENT_UPDATE, TASK_NOTIFICATIONS,
 // TASK_UPDATE, SYSTEM_MESSAGE, USER_STATUS_CHANGE, LEAVE, GET_NOTIFICATIONS,
-// GET_TASK_NOTIFICATIONS) — eram vestígios do sistema de notificação legado de
-// documento único, ou de um fluxo de polling nunca adotado neste frontend.
+// GET_TASK_NOTIFICATIONS) — eram vestígios do sistema de notificação legado.
+// 2026-07-17: removidos também JOIN, MARK_NOTIFICATION_READ e
+// MARK_ALL_NOTIFICATIONS_READ (+ joinRoom/leaveRoom) — emitiam para handlers
+// que nunca existiram no backend (o join à room é feito pelo on_connect;
+// marcar como lida é HTTP PUT /notifications/...).
 export const SOCKET_EVENTS = {
   // Connection
   CONNECT: 'connect',
@@ -363,17 +336,13 @@ export const SOCKET_EVENTS = {
 
   // Notifications
   NEW_NOTIFICATION: 'new_notification',
+  CENTRAL_NOTIFICATION: 'central_notification',
 
   // Payments
   PAYMENT_STATUS_UPDATE: 'payment_status_update',
 
   // Tasks
   TASK_NOTIFICATION: 'task_notification',
-
-  // Actions
-  JOIN: 'join',
-  MARK_NOTIFICATION_READ: 'mark_notification_read',
-  MARK_ALL_NOTIFICATIONS_READ: 'mark_all_notifications_read',
 };
 
 export default {
@@ -382,8 +351,6 @@ export default {
   emitEvent,
   onEvent,
   offEvent,
-  joinRoom,
-  leaveRoom,
   getSocket,
   getSocketId,
   isSocketConnected,
