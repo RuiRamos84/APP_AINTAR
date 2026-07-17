@@ -5,7 +5,7 @@ import notification from '@/core/services/notification';
 import {
   getPonto, registarPontoEvento, submeterPontoMensal,
   getPontoMensal, corrigirPonto, adicionarPontoAdmin, getFaceStatus,
-  resetFaceAdmin, getFaceUsersStatus,
+  resetFaceAdmin, eraseFaceAdmin, getFaceUsersStatus,
   executarWorkflow,
 } from '../services/rhService';
 
@@ -87,6 +87,22 @@ export const useResetFaceAdmin = () => {
       notification.success('Rosto do colaborador removido.');
     },
     onError: (e) => notification.apiError(e, 'Erro ao remover rosto'),
+  });
+};
+
+// Apagamento físico (RGPD art.17) — distinto do reset: elimina os
+// templates da BD e revoga o consentimento, não permite apenas reabrir
+// o enrolamento. Usar em offboarding ou pedido de titular de dados.
+export const useEraseFaceAdmin = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userFk) => eraseFaceAdmin(userFk),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rh-face-status'] });
+      qc.invalidateQueries({ queryKey: ['rh-face-users'] });
+      notification.success('Dados biométricos apagados definitivamente.');
+    },
+    onError: (e) => notification.apiError(e, 'Erro ao apagar dados biométricos'),
   });
 };
 

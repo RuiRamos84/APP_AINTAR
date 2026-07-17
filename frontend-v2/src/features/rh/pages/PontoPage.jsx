@@ -19,6 +19,7 @@ import {
   FaceRetouchingNatural as FaceIcon,
   VerifiedUser as EnrollIcon,
   DeleteOutline as ResetIcon,
+  DeleteForever as EraseIcon,
   AdminPanelSettings as AdminFaceIcon,
 } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
@@ -29,7 +30,7 @@ import { SearchBar } from '@/shared/components/data';
 import { useSearch } from '@/shared/hooks';
 import { useAuth } from '@/core/contexts/AuthContext';
 import { usePermissions } from '@/core/contexts/PermissionContext';
-import { usePontoHoje, usePontoMes, usePontoMensal, usePontoActions, useFaceStatus, useResetFaceAdmin, useFaceUsers } from '../hooks/usePonto';
+import { usePontoHoje, usePontoMes, usePontoMensal, usePontoActions, useFaceStatus, useResetFaceAdmin, useEraseFaceAdmin, useFaceUsers } from '../hooks/usePonto';
 import { useColaboradorPerfil } from '../hooks/useGestaoColaboradores';
 import { usePendentes } from '../hooks/useGestaoCentral';
 import EstadoBadge from '../components/EstadoBadge';
@@ -472,15 +473,17 @@ const AprovacaoTab = ({ search, mes, ano }) => {
 
 const GestaoFacialTab = ({ search }) => {
   const [confirmUser, setConfirmUser] = useState(null);
+  const [eraseUser, setEraseUser] = useState(null);
 
   const { users, isLoading } = useFaceUsers();
   const resetAdmin = useResetFaceAdmin();
+  const eraseAdmin = useEraseFaceAdmin();
   const results = useSearch(users, search);
 
   return (
     <Box>
       <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
-        O reset remove todos os descritores faciais do colaborador. Ele terá de fazer novo registo antes de poder registar ponto.
+        <strong>Reset</strong> desativa o registo actual — o colaborador pode voltar a registar o rosto. <strong>Apagar</strong> elimina os dados biométricos em definitivo (direito ao apagamento, RGPD) e revoga o consentimento.
       </Alert>
 
       {isLoading ? (
@@ -521,17 +524,32 @@ const GestaoFacialTab = ({ search }) => {
                     sx={{ mr: 1 }}
                   />
                 )}
-                <Tooltip title="Remover registo facial deste colaborador">
+                <Tooltip title="Desativar registo facial — permite novo registo">
+                  <span>
+                    <Button
+                      size="small"
+                      color="warning"
+                      variant="outlined"
+                      startIcon={<ResetIcon />}
+                      disabled={!u.enrolled || resetAdmin.isPending}
+                      onClick={() => setConfirmUser(u)}
+                      sx={{ mr: 1 }}
+                    >
+                      Reset
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip title="Apagar definitivamente os dados biométricos (RGPD)">
                   <span>
                     <Button
                       size="small"
                       color="error"
                       variant="outlined"
-                      startIcon={<ResetIcon />}
-                      disabled={!u.enrolled || resetAdmin.isPending}
-                      onClick={() => setConfirmUser(u)}
+                      startIcon={<EraseIcon />}
+                      disabled={!u.enrolled || eraseAdmin.isPending}
+                      onClick={() => setEraseUser(u)}
                     >
-                      Reset
+                      Apagar
                     </Button>
                   </span>
                 </Tooltip>
@@ -546,14 +564,15 @@ const GestaoFacialTab = ({ search }) => {
         <DialogTitle>Confirmar Reset Facial</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
-            Vai remover o registo facial de <strong>{confirmUser?.name}</strong>.
+            Vai desativar o registo facial de <strong>{confirmUser?.name}</strong>.
             O colaborador terá de fazer novo registo antes de poder registar ponto.
+            Os dados anteriores ficam guardados até serem apagados definitivamente.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmUser(null)} color="inherit">Cancelar</Button>
           <Button
-            color="error"
+            color="warning"
             variant="contained"
             disabled={resetAdmin.isPending}
             onClick={async () => {
@@ -561,7 +580,36 @@ const GestaoFacialTab = ({ search }) => {
               setConfirmUser(null);
             }}
           >
-            {resetAdmin.isPending ? 'A remover…' : 'Confirmar Reset'}
+            {resetAdmin.isPending ? 'A desativar…' : 'Confirmar Reset'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmação de apagamento definitivo (RGPD) */}
+      <Dialog open={!!eraseUser} onClose={() => setEraseUser(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Apagar Dados Biométricos</DialogTitle>
+        <DialogContent>
+          <Alert severity="error" variant="outlined" sx={{ mb: 2 }}>
+            Esta ação é irreversível.
+          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            Vai apagar definitivamente os dados biométricos de <strong>{eraseUser?.name}</strong> e
+            revogar o consentimento associado. Use apenas em offboarding ou pedido de titular de dados —
+            para permitir apenas um novo registo, use Reset.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEraseUser(null)} color="inherit">Cancelar</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={eraseAdmin.isPending}
+            onClick={async () => {
+              await eraseAdmin.mutateAsync(eraseUser.user_fk);
+              setEraseUser(null);
+            }}
+          >
+            {eraseAdmin.isPending ? 'A apagar…' : 'Apagar Definitivamente'}
           </Button>
         </DialogActions>
       </Dialog>
