@@ -5,7 +5,7 @@ from ..utils.utils import db_session_manager, format_message
 from pydantic import BaseModel, Field, field_validator
 from datetime import date
 from typing import Optional, List
-from app.utils.error_handler import api_error_handler, ResourceNotFoundError
+from app.utils.error_handler import api_error_handler, ResourceNotFoundError, APIError
 from app.utils.logger import get_logger
 from app.services.meta_data_service import clear_meta_data_cache
 
@@ -400,6 +400,28 @@ def update_instalacao_autocontrolo(pk: int, data: dict, current_user: str):
         result = session.execute(query, params).scalar()
         success_message = format_message(result)
         return {'message': 'Autocontrolo atualizado com sucesso', 'result': success_message}, 200
+
+
+def gerar_periodos_autocontrolo(tb_instalacao: int, ano: int, current_user: str):
+    """Gera os períodos de autocontrolo em falta (mensais ou trimestrais,
+    consoante a periodicidade configurada na instalação) para um dado ano.
+    Idempotente — chamar novamente não duplica períodos já existentes."""
+    with db_session_manager(current_user) as session:
+        periodicidade = session.execute(
+            text("SELECT tt_instalacaoautocontrolo FROM tb_instalacao WHERE pk = :pk"),
+            {'pk': tb_instalacao}
+        ).scalar()
+        if periodicidade is None:
+            raise APIError(
+                'Esta instalação não tem periodicidade de autocontrolo configurada. '
+                'Defina-a em "Características" antes de gerar períodos.',
+                400
+            )
+        session.execute(
+            text('CALL "fbf_instalacao_autocontrolo$init"(:ano, :tb_instalacao)'),
+            {'ano': ano, 'tb_instalacao': tb_instalacao}
+        )
+        return {'message': f'Períodos de autocontrolo de {ano} gerados com sucesso'}, 200
 
 
 def get_instalacao_autocontrolo_resumo(current_user, ano: int):

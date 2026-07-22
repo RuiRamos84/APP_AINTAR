@@ -96,6 +96,11 @@ export const updateInstalacaoAutocontrolo = async ({ pk, data }) => {
   return res;
 };
 
+export const gerarPeriodosAutocontrolo = async ({ tb_instalacao, ano }) => {
+  const res = await api.post('/instalacao_autocontrolo/gerar_periodos', { tb_instalacao, ano });
+  return res;
+};
+
 export const getInstalacaoAutocontroloResumo = async (ano) => {
   const res = await api.get('/instalacao_autocontrolo_resumo', { params: { ano } });
   return res;

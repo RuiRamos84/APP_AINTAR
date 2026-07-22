@@ -72,7 +72,7 @@ import {
   createInstalacaoQualidadeAmbiental,
   createDescargaInterdita,
   getInstalacaoAutocontrolo,
-  extractPdfBoletim, importarBoletimAutocontrolo,
+  extractPdfBoletim, importarBoletimAutocontrolo, gerarPeriodosAutocontrolo,
   getLicencasEtar,
 } from '../services/etarEeService';
 import DirectTaskForm from '../../operations/components/DirectTaskForm';
@@ -1798,13 +1798,31 @@ const EvolucaoParametrosPanel = ({ pk, color }) => {
 };
 
 const AutocontroloTab = ({ color, data, isLoading, updateAutocontrolo, isUpdating, periodicidade, incumprimentos = [], pk }) => {
+  const qc = useQueryClient();
   const [editPeriodo, setEditPeriodo] = useState(null);
   const [form, setForm] = useState({ boletim: '', data: '', cumprimento: '' });
+  const [gerandoAno, setGerandoAno] = useState(false);
 
   const anos = useMemo(
     () => [...new Set((data || []).map((p) => p.ano))].sort((a, b) => b - a),
     [data],
   );
+
+  const anoAtual = new Date().getFullYear();
+  const faltaAnoAtual = !!periodicidade && !anos.includes(anoAtual);
+
+  const handleGerarAnoAtual = async () => {
+    setGerandoAno(true);
+    try {
+      await gerarPeriodosAutocontrolo({ tb_instalacao: pk, ano: anoAtual });
+      qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo', pk] });
+      notification.success(`Períodos de autocontrolo de ${anoAtual} gerados com sucesso.`);
+    } catch (err) {
+      notification.error(err?.response?.data?.error || err.message || 'Erro ao gerar períodos.');
+    } finally {
+      setGerandoAno(false);
+    }
+  };
 
   // Os incumprimentos não têm FK direta para o período — associam-se pela
   // data (mesmo ano/mês-ou-trimestre, consoante a periodicidade). É a mesma
@@ -1846,7 +1864,18 @@ const AutocontroloTab = ({ color, data, isLoading, updateAutocontrolo, isUpdatin
     return <Alert severity="info">Periodicidade de autocontrolo não configurada para esta instalação. Configure-a em "Características".</Alert>;
   }
   if (!anos.length) {
-    return <Alert severity="info">Sem períodos de autocontrolo gerados.</Alert>;
+    return (
+      <Alert
+        severity="info"
+        action={
+          <Button color="inherit" size="small" disabled={gerandoAno} onClick={handleGerarAnoAtual}>
+            {gerandoAno ? 'A gerar…' : `Gerar períodos ${anoAtual}`}
+          </Button>
+        }
+      >
+        Sem períodos de autocontrolo gerados.
+      </Alert>
+    );
   }
 
   const incumprimentosEdit = editPeriodo
@@ -1855,6 +1884,19 @@ const AutocontroloTab = ({ color, data, isLoading, updateAutocontrolo, isUpdatin
 
   return (
     <Box>
+      {faltaAnoAtual && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" disabled={gerandoAno} onClick={handleGerarAnoAtual}>
+              {gerandoAno ? 'A gerar…' : `Gerar períodos ${anoAtual}`}
+            </Button>
+          }
+        >
+          Ainda não existem períodos de autocontrolo de {anoAtual} gerados para esta instalação.
+        </Alert>
+      )}
       {anos.map((ano) => {
         const periodosAno = data.filter((p) => p.ano === ano).sort((a, b) => a.periodo - b.periodo);
         return (
@@ -1985,6 +2027,7 @@ const ImportarBoletimDialog = ({ open, onClose, entityList }) => {
   const [file, setFile] = useState(null);
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [gerandoPeriodos, setGerandoPeriodos] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [selectedPk, setSelectedPk] = useState(null);
   const [cumprimento, setCumprimento] = useState('');
@@ -2029,6 +2072,19 @@ const ImportarBoletimDialog = ({ open, onClose, entityList }) => {
       setErro(err?.response?.data?.error || err.message || 'Erro ao processar o PDF.');
     } finally {
       setExtracting(false);
+    }
+  };
+
+  const handleGerarPeriodos = async (ano) => {
+    setGerandoPeriodos(true);
+    try {
+      await gerarPeriodosAutocontrolo({ tb_instalacao: selectedPk, ano });
+      qc.invalidateQueries({ queryKey: ['etar', 'autocontrolo', selectedPk] });
+      notification.success(`Períodos de autocontrolo de ${ano} gerados com sucesso.`);
+    } catch (err) {
+      notification.error(err?.response?.data?.error || err.message || 'Erro ao gerar períodos.');
+    } finally {
+      setGerandoPeriodos(false);
     }
   };
 
@@ -2151,7 +2207,20 @@ const ImportarBoletimDialog = ({ open, onClose, entityList }) => {
         )}
 
         {boletim && boletim.tipo !== 'entrada' && selectedPk && periodicidade && !periodoExistente && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                disabled={gerandoPeriodos}
+                onClick={() => handleGerarPeriodos(periodoCalc?.ano)}
+              >
+                {gerandoPeriodos ? 'A gerar…' : 'Gerar períodos'}
+              </Button>
+            }
+          >
             Não existe período de autocontrolo gerado para {periodoCalc?.periodo}/{periodoCalc?.ano} em {selecionada?.nome}.
             Gere os períodos do ano antes de importar.
           </Alert>

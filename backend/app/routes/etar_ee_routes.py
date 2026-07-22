@@ -74,6 +74,7 @@ from ..services.etar_ee_service import (
     create_instalacao_incumprimento,
     list_instalacao_autocontrolo,
     update_instalacao_autocontrolo,
+    gerar_periodos_autocontrolo,
     get_instalacao_autocontrolo_resumo,
     get_instalacao_autocontrolo_periodos,
     importar_boletim_autocontrolo,
@@ -1466,6 +1467,25 @@ def put_instalacao_autocontrolo(pk):
     current_user = get_jwt_identity()
     data = request.get_json()
     result, status_code = update_instalacao_autocontrolo(pk, data, current_user)
+    return jsonify(result), status_code
+
+
+@bp.route('/instalacao_autocontrolo/gerar_periodos', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('operation.access')  # operation.access
+@set_session
+@api_error_handler
+def gerar_periodos_autocontrolo_route():
+    """Gera os períodos de autocontrolo em falta de uma instalação para um ano
+    (idempotente — não duplica períodos já existentes)."""
+    current_user = get_jwt_identity()
+    data = request.get_json() or {}
+    tb_instalacao = data.get('tb_instalacao')
+    ano = data.get('ano')
+    if not tb_instalacao or not ano:
+        return jsonify({'error': 'Os parâmetros tb_instalacao e ano são obrigatórios'}), 400
+    result, status_code = gerar_periodos_autocontrolo(tb_instalacao, ano, current_user)
     return jsonify(result), status_code
 
 

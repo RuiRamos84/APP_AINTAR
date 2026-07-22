@@ -128,9 +128,12 @@ end; $function$;
 -- ===================================================================
 -- fbf_instalacao_autocontrolo$init / $initall — geram os períodos em falta
 -- (1 a 12 se mensal, 1 a 4 se trimestral) para um ano. Idempotentes
--- (ON CONFLICT DO NOTHING). Não têm rota HTTP própria neste momento — correr
--- diretamente na BD no início de cada ano civil, ou expor um endpoint de
--- administração se se tornar uma tarefa recorrente do utilizador.
+-- (ON CONFLICT DO NOTHING). $init tem rota própria desde 2026-07-22:
+-- POST /instalacao_autocontrolo/gerar_periodos (ver etar_ee_service.py,
+-- gerar_periodos_autocontrolo) — usada pelo botão "Gerar períodos" no
+-- InstalacaoPage.jsx (tab Autocontrolo e modal de importação de boletim).
+-- $initall continua só acessível via BD (correr no início de cada ano civil
+-- para todas as instalações de uma vez, se necessário).
 -- ===================================================================
 CREATE OR REPLACE PROCEDURE "fbf_instalacao_autocontrolo$init"(
     IN pnano integer,
