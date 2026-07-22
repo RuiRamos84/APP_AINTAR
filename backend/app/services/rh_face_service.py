@@ -1,6 +1,7 @@
 import numpy as np
 from flask import jsonify
 from sqlalchemy import text
+from app import cache
 from app.utils.error_handler import api_error_handler
 from ..utils.utils import db_session_manager
 from app.utils.logger import get_logger
@@ -16,6 +17,23 @@ MIN_TEMPLATES = 3
 # de conteúdo, para forçar novo consentimento explícito no próximo enrolamento
 CONSENT_TIPO = 'biometrico'
 
+# Cache dos templates activos por utilizador (Redis, mesmo padrão de auth_service.py).
+# Aquecida em get_face_status (chamada pelo frontend ao abrir o modal de captura,
+# antes de a câmara sequer arrancar) para poupar o round-trip à BD no momento
+# sensível a latência — verify_face, chamado logo a seguir à captura. TTL curto
+# porque a janela entre abrir o modal e verificar é sempre de poucos segundos;
+# invalidada explicitamente em qualquer escrita (enroll/reset/erase) para nunca
+# devolver um "verified" com base em templates já desactivados/apagados.
+FACE_TEMPLATES_CACHE_TTL = 120
+
+
+def _templates_cache_key(user_fk: int) -> str:
+    return f'rh_face_templates:{user_fk}'
+
+
+def _invalidate_templates_cache(user_fk: int):
+    cache.delete(_templates_cache_key(user_fk))
+
 
 def _euclidean(a: list, b: list) -> float:
     return float(np.linalg.norm(np.array(a, dtype=np.float64) - np.array(b, dtype=np.float64)))
@@ -28,15 +46,20 @@ def _euclidean(a: list, b: list) -> float:
 @api_error_handler
 def get_face_status(user_fk: int, current_user: str):
     with db_session_manager(current_user) as session:
-        count = session.execute(text("""
-            SELECT COUNT(*) FROM tb_rh_face_template
+        rows = session.execute(text("""
+            SELECT descriptor FROM tb_rh_face_template
             WHERE tb_user_fk = :user_fk AND ativo = TRUE
-        """), {'user_fk': user_fk}).scalar() or 0
+        """), {'user_fk': user_fk}).fetchall()
 
-        return jsonify({
-            'enrolled': count >= MIN_TEMPLATES,
-            'template_count': count,
-        }), 200
+    templates = [list(row[0]) for row in rows]
+    # Aquece a cache agora — este endpoint é sempre chamado pelo frontend antes
+    # de abrir a câmara, alguns segundos antes do verify_face que se segue.
+    cache.set(_templates_cache_key(user_fk), templates, timeout=FACE_TEMPLATES_CACHE_TTL)
+
+    return jsonify({
+        'enrolled': len(templates) >= MIN_TEMPLATES,
+        'template_count': len(templates),
+    }), 200
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +123,7 @@ def enroll_face(data: dict, user_fk: int, current_user: str):
                 VALUES (:pk, :user_fk, :descriptor)
             """), {'pk': pk, 'user_fk': user_fk, 'descriptor': descriptor})
 
+    _invalidate_templates_cache(user_fk)
     logger.info(f'Face enrollment: user={user_fk}, {len(descriptors)} templates guardados')
     return jsonify({'message': 'Rosto registado com sucesso.', 'template_count': len(descriptors)}), 201
 
@@ -172,20 +196,27 @@ def verify_face(data: dict, user_fk: int, current_user: str):
     if not descriptor or len(descriptor) != 128:
         return jsonify({'error': 'Descritor facial inválido.'}), 400
 
-    with db_session_manager(current_user) as session:
-        rows = session.execute(text("""
-            SELECT descriptor FROM tb_rh_face_template
-            WHERE tb_user_fk = :user_fk AND ativo = TRUE
-        """), {'user_fk': user_fk}).fetchall()
+    templates = cache.get(_templates_cache_key(user_fk))
+    if templates is None:
+        # Cache fria (utilizador não passou por get_face_status recentemente,
+        # ou a entrada expirou) — cai para a BD, comportamento idêntico ao de
+        # sempre. A cache é só uma optimização de latência, nunca a única fonte.
+        with db_session_manager(current_user) as session:
+            rows = session.execute(text("""
+                SELECT descriptor FROM tb_rh_face_template
+                WHERE tb_user_fk = :user_fk AND ativo = TRUE
+            """), {'user_fk': user_fk}).fetchall()
+        templates = [list(row[0]) for row in rows]
+        cache.set(_templates_cache_key(user_fk), templates, timeout=FACE_TEMPLATES_CACHE_TTL)
 
-    if not rows:
+    if not templates:
         return jsonify({
             'verified': False,
             'score': None,
             'error': 'Sem rosto registado. Efectue o registo facial primeiro.',
         }), 200
 
-    min_dist = min(_euclidean(descriptor, list(row[0])) for row in rows)
+    min_dist = min(_euclidean(descriptor, template) for template in templates)
     verified = min_dist <= FACE_THRESHOLD
 
     logger.info(f'Face verify: user={user_fk}, score={min_dist:.4f}, verified={verified}')
@@ -198,6 +229,12 @@ def verify_face(data: dict, user_fk: int, current_user: str):
 
 @api_error_handler
 def reset_face_templates(user_fk: int, current_user: str, requester_fk: int = None, ip: str = None):
+    # Invalidar antes de escrever (não depois): fecha a janela em que um
+    # verify_face concorrente podia acertar na cache ainda quente com
+    # templates que este reset está prestes a desactivar. Pior caso se a
+    # transacção falhar: cache vazia, próximo verify paga 1 query extra.
+    _invalidate_templates_cache(user_fk)
+
     with db_session_manager(current_user) as session:
         session.execute(text("""
             UPDATE tb_rh_face_template SET ativo = FALSE
@@ -227,6 +264,10 @@ def erase_face_data(user_fk: int, current_user: str, requester_fk: int = None, i
     operacional (permite reabrir o enrolamento); isto é o direito ao apagamento
     — usado em offboarding ou pedido de titular de dados.
     """
+    # Ver nota em reset_face_templates: invalidar antes de escrever fecha a
+    # janela de corrida com um verify_face concorrente.
+    _invalidate_templates_cache(user_fk)
+
     with db_session_manager(current_user) as session:
         deleted = session.execute(text("""
             DELETE FROM tb_rh_face_template WHERE tb_user_fk = :user_fk

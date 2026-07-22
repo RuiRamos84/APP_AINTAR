@@ -92,3 +92,27 @@ export function useFaceApi() {
 
   return { modelsReady, loadError, ensureModels, extractDescriptor, faceapi };
 }
+
+/**
+ * Média vector-a-vector de vários descritores 128-D, renormalizada para
+ * norma unitária. Usada para consolidar os últimos N frames confirmados
+ * num único descritor mais estável — um frame isolado com brilho (ex.:
+ * reflexo em óculos) ou ligeiro desfoque pesa menos combinado com os
+ * frames vizinhos.
+ *
+ * Os descritores do face-api.js são vectores unitários (norma 1); a média
+ * de N deles tem norma < 1 (encolhe tanto mais quanto mais os frames
+ * divergem entre si). Sem renormalizar, isso reduz artificialmente a
+ * distância euclidiana ao comparar contra os templates, desalinhando o
+ * resultado do FACE_THRESHOLD calibrado para vectores unitários.
+ */
+export function averageDescriptors(descriptors) {
+  const len = descriptors[0].length;
+  const sum = new Array(len).fill(0);
+  for (const d of descriptors) {
+    for (let i = 0; i < len; i++) sum[i] += d[i];
+  }
+  const mean = sum.map(v => v / descriptors.length);
+  const norm = Math.sqrt(mean.reduce((acc, v) => acc + v * v, 0));
+  return norm > 0 ? mean.map(v => v / norm) : mean;
+}

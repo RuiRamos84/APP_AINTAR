@@ -8,7 +8,7 @@ import {
   CheckCircle as OkIcon,
   ErrorOutline as ErrIcon,
 } from '@mui/icons-material';
-import { useFaceApi } from '../hooks/useFaceApi';
+import { useFaceApi, averageDescriptors } from '../hooks/useFaceApi';
 
 const VIDEO_W = 480;
 const VIDEO_H = 360;
@@ -32,6 +32,7 @@ export default function FaceCaptureModal({ open, onClose, onCapture, title = 'Ve
   const streamRef   = useRef(null);
   const timerRef    = useRef(null);
   const frameCount  = useRef(0);
+  const frameBufferRef = useRef([]); // descritores dos últimos frames, para consolidar por média
   const capturedRef = useRef(false);  // guarda contra chamadas duplas em callbacks async
   const detectingRef = useRef(false); // impede chamadas sobrepostas de extractDescriptor
 
@@ -49,6 +50,7 @@ export default function FaceCaptureModal({ open, onClose, onCapture, title = 'Ve
     setProgress(0);
     setErrorMsg('');
     frameCount.current  = 0;
+    frameBufferRef.current = [];
     capturedRef.current = false;
 
     let cancelled = false;
@@ -92,6 +94,8 @@ export default function FaceCaptureModal({ open, onClose, onCapture, title = 'Ve
         const descriptor = await extractDescriptor(videoRef.current);
         if (descriptor) {
           frameCount.current += 1;
+          frameBufferRef.current.push(descriptor);
+          if (frameBufferRef.current.length > FRAMES_TO_CONFIRM) frameBufferRef.current.shift();
           setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
           if (frameCount.current >= FRAMES_TO_CONFIRM) {
             if (capturedRef.current) return;
@@ -99,7 +103,9 @@ export default function FaceCaptureModal({ open, onClose, onCapture, title = 'Ve
             clearInterval(timerRef.current);
             setPhase('captured');
             stopCamera();
-            onCapture(descriptor);
+            // Média dos últimos frames em vez do frame isolado que fechou a
+            // confirmação — mais estável com reflexo de óculos ou desfoque.
+            onCapture(averageDescriptors(frameBufferRef.current));
           }
         } else {
           frameCount.current = Math.max(0, frameCount.current - 1);

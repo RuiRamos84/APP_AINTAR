@@ -11,7 +11,7 @@ import {
   PrivacyTip as PrivacyIcon,
 } from '@mui/icons-material';
 import { toast } from 'sonner';
-import { useFaceApi } from '../hooks/useFaceApi';
+import { useFaceApi, averageDescriptors } from '../hooks/useFaceApi';
 import { enrollFace, getFaceConsent, registerFaceConsent } from '../services/rhService';
 
 const VIDEO_W = 480;
@@ -51,12 +51,17 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
   const timerRef   = useRef(null);
   const frameCount = useRef(0);
   const detectingRef = useRef(false); // impede chamadas sobrepostas de extractDescriptor
+  // Acumuladores em ref (não em state): a lógica de avanço de fase/gravação
+  // corre fora de qualquer updater funcional de setState — ver nota no loop
+  // de detecção sobre o bug de duplicação de fase em StrictMode.
+  const descriptorsRef = useRef([]);  // 1 descritor (médio) por captura confirmada
+  const frameBufferRef = useRef([]);  // descritores dos últimos frames da captura em curso
+  const savingRef      = useRef(false); // impede saveEnrollment duplicado
 
   const [step, setStep]             = useState(0);           // captura actual (0..TOTAL_CAPTURES-1)
   const [phase, setPhase]           = useState('checking-consent'); // checking-consent | consent | loading | detecting | captured | saving | done | error
   const [progress, setProgress]     = useState(0);
   const [errorMsg, setErrorMsg]     = useState('');
-  const [descriptors, setDescriptors] = useState([]);
   const [consentChecked, setConsentChecked] = useState(false);
   const [consentSaving, setConsentSaving]   = useState(false);
 
@@ -127,7 +132,9 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
   useEffect(() => {
     if (!open) return;
     setStep(0);
-    setDescriptors([]);
+    descriptorsRef.current = [];
+    frameBufferRef.current = [];
+    savingRef.current = false;
     setErrorMsg('');
     checkConsent();
     return () => {
@@ -151,6 +158,8 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
         const descriptor = await extractDescriptor(videoRef.current);
         if (descriptor) {
           frameCount.current += 1;
+          frameBufferRef.current.push(descriptor);
+          if (frameBufferRef.current.length > FRAMES_TO_CONFIRM) frameBufferRef.current.shift();
           setProgress(Math.round((frameCount.current / FRAMES_TO_CONFIRM) * 100));
 
           if (frameCount.current >= FRAMES_TO_CONFIRM) {
@@ -159,18 +168,29 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
             setProgress(100);
             setPhase('captured');
 
-            setDescriptors(prev => {
-              const next = [...prev, descriptor];
-              if (next.length >= TOTAL_CAPTURES) {
-                // Todas as capturas feitas — enviar
-                setTimeout(() => saveEnrollment(next), 400);
-              } else {
-                // Avançar para próxima captura
-                setStep(s => s + 1);
-                setTimeout(() => { setPhase('detecting'); setProgress(0); }, 800);
-              }
-              return next;
-            });
+            // Consolida os últimos frames confirmados num único descritor —
+            // reduz o peso de um frame isolado com brilho (ex.: reflexo em
+            // óculos) ou desfoque ligeiro.
+            const avgDescriptor = averageDescriptors(frameBufferRef.current);
+            frameBufferRef.current = [];
+
+            // Acumulação e decisão de avanço feitas fora de qualquer updater
+            // funcional de setState: um setDescriptors(prev => {...}) com
+            // setStep/setTimeout lá dentro faz o React (StrictMode, dev)
+            // invocar o corpo duas vezes para detectar impurezas — cada
+            // invocação chamava setStep de facto, duplicando o avanço de
+            // fase. Com ref + chamadas directas isto corre exactamente 1x.
+            descriptorsRef.current = [...descriptorsRef.current, avgDescriptor];
+            const next = descriptorsRef.current;
+
+            if (next.length >= TOTAL_CAPTURES) {
+              // Todas as capturas feitas — enviar
+              setTimeout(() => saveEnrollment(next), 400);
+            } else {
+              // Avançar para próxima captura
+              setStep(s => s + 1);
+              setTimeout(() => { setPhase('detecting'); setProgress(0); }, 800);
+            }
           }
         } else {
           frameCount.current = Math.max(0, frameCount.current - 1);
@@ -188,6 +208,8 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
   // ─── Submissão ──────────────────────────────────────────────────────────────
 
   const saveEnrollment = useCallback(async (allDescriptors) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setPhase('saving');
     streamRef.current?.getTracks().forEach(t => t.stop());
 
