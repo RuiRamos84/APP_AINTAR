@@ -15,22 +15,30 @@ export interface PickedFile {
   mimeType?: string | null;
 }
 
-// Sem operação de remoção — o backend não expõe DELETE para anexos de participação.
 export const useParticipacaoAnexos = (pk?: number) => {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ['rh-participacoes'] });
 
   const upload = useMutation({
-    mutationFn: async (files: PickedFile[]) => {
+    // Aceita um pk explícito por chamada (para o caso "criar depois anexar",
+    // onde o pk só existe depois da mutação de criação resolver) — cai para
+    // o pk do hook quando omitido (ex: dentro do formulário de edição).
+    mutationFn: async ({ pk: targetPk = pk, files }: { pk?: number; files: PickedFile[] }) => {
       const formData = new FormData();
       files.forEach((f) => {
         formData.append('files', { uri: f.uri, name: f.name, type: f.mimeType || 'application/octet-stream' } as unknown as Blob);
       });
-      const { data } = await apiClient.post<UploadAnexosResult>(`/rh/participacoes/${pk}/anexos`, formData, {
+      const { data } = await apiClient.post<UploadAnexosResult>(`/rh/participacoes/${targetPk}/anexos`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return data;
     },
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (filename: string) =>
+      apiClient.delete(`/rh/participacoes/${pk}/anexos/${encodeURIComponent(filename)}`),
     onSuccess: invalidate,
   });
 
@@ -49,6 +57,8 @@ export const useParticipacaoAnexos = (pk?: number) => {
   return {
     upload: upload.mutateAsync,
     isUploading: upload.isPending,
+    remove: remove.mutateAsync,
+    isRemoving: remove.isPending,
     download,
   };
 };

@@ -27,6 +27,25 @@ export const useFaceStatus = (userFk?: number) =>
     staleTime: 60 * 1000,
   });
 
+// ─── Consentimento RGPD (art.º 9.º — dado biométrico) ───────────────────────
+// O backend recusa o enrolamento (403) sem consentimento explícito activo.
+// Chamadas one-shot dentro do fluxo de registo — não precisam de react-query.
+
+export interface FaceConsentStatus {
+  consentido: boolean;
+  versao: string | null;
+  ts_consentimento: string | null;
+}
+
+export const fetchFaceConsent = async (): Promise<FaceConsentStatus> => {
+  const { data } = await apiClient.get('/rh/face/consent');
+  return data;
+};
+
+export const registerFaceConsent = async (versao: string): Promise<void> => {
+  await apiClient.post('/rh/face/consent', { versao });
+};
+
 export const useEnrollFace = (userFk?: number) => {
   const qc = useQueryClient();
   return useMutation({

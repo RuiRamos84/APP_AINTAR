@@ -11,6 +11,7 @@ import { COLORS, RADIUS, SPACING } from '@/shared/theme/colors';
 import { fmtTime } from '@/features/rh/utils/rhUtils';
 import { usePontoHoje } from '@/features/rh/hooks/usePonto';
 import { useFerias } from '@/features/rh/hooks/useFerias';
+import { useFaltas } from '@/features/rh/hooks/useFaltas';
 import { useParticipacoes } from '@/features/rh/hooks/useParticipacoes';
 import { useHorarios } from '@/features/rh/hooks/useHorarios';
 import { useColaboradoresCompletos } from '@/features/rh/hooks/useRhLookups';
@@ -107,6 +108,24 @@ const ParticipacaoContent = ({ userFk }: { userFk: number }) => {
   );
 };
 
+const FaltasContent = ({ userFk }: { userFk: number }) => {
+  const ano = new Date().getFullYear();
+  const { faltas, isLoading } = useFaltas({ user_fk: userFk, ano });
+  if (isLoading) return <ActivityIndicator size="small" color={COLORS.primary} />;
+  if (faltas.length === 0) return <Text style={styles.muted}>Sem faltas este ano.</Text>;
+  const pendentes = faltas.filter((f) => f.ts_estado_fk <= 2).length;
+  return (
+    <View>
+      <Text style={styles.bodyText}><Text style={{ fontWeight: '700' }}>{faltas.length}</Text> falta(s) este ano</Text>
+      {pendentes > 0 && (
+        <Chip compact style={[{ backgroundColor: COLORS.warningSurface, marginTop: SPACING.xs, alignSelf: 'flex-start' }]} textStyle={{ fontSize: 11, color: COLORS.warning }}>
+          {pendentes} pendente(s)
+        </Chip>
+      )}
+    </View>
+  );
+};
+
 const HorarioContent = ({ userFk }: { userFk: number }) => {
   const { horarios, isLoading } = useHorarios({ user_fk: userFk, activos: true });
   if (isLoading) return <ActivityIndicator size="small" color={COLORS.primary} />;
@@ -188,7 +207,11 @@ const RhColaboradorScreen = () => {
               <FeriasContent userFk={userFk} />
             </SectionCard>
 
-            <SectionCard icon="event-busy" title="Faltas" color="#d97706" onPress={() => navigation.navigate('Participacao')}>
+            <SectionCard icon="event-busy" title="Faltas" color="#d97706" onPress={() => navigation.navigate('Faltas')}>
+              <FaltasContent userFk={userFk} />
+            </SectionCard>
+
+            <SectionCard icon="badge" title="Participações de Ausências" color="#9333ea" onPress={() => navigation.navigate('Participacao')}>
               <ParticipacaoContent userFk={userFk} />
             </SectionCard>
 

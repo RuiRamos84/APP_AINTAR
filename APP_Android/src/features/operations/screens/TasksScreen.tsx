@@ -6,6 +6,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useDraft } from '@/shared/hooks/useDraft';
+import { useScrollToEndOnKeyboard } from '@/shared/hooks/useScrollToEndOnKeyboard';
 import ExpandablePicker, { PickerOption } from '@/shared/components/ExpandablePicker';
 import {
   Text, ActivityIndicator, Snackbar, Portal,
@@ -384,20 +385,6 @@ const PedidoCard = ({ pedido }: { pedido: Pedido }) => {
       </View>
     </View>
   );
-};
-
-// ─── Scroll the focused field into view once the keyboard has actually
-// finished animating in — a fixed setTimeout on focus fires before Android's
-// keyboard animation completes, leaving the field the user is typing in
-// hidden behind the keyboard. ──────────────────────────────────────────────
-const useScrollToEndOnKeyboard = (scrollRef: React.RefObject<ScrollView | null>, active: boolean) => {
-  useEffect(() => {
-    if (!active) return;
-    const sub = Keyboard.addListener('keyboardDidShow', () => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    });
-    return () => sub.remove();
-  }, [active, scrollRef]);
 };
 
 // ─── Completion Dialog ────────────────────────────────────────────────────────

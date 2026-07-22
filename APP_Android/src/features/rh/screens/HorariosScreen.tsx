@@ -3,7 +3,6 @@ import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, ActivityIndicator, FAB, IconButton, Snackbar, TextInput, Chip } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import useAuthStore from '@/features/auth/store/authStore';
 import { useHorarios, type Horario } from '@/features/rh/hooks/useHorarios';
 import { useRhLookups } from '@/features/rh/hooks/useRhLookups';
 import { COLORS, RADIUS, SPACING } from '@/shared/theme/colors';
@@ -11,11 +10,10 @@ import { fmtDate } from '@/features/rh/utils/rhUtils';
 import HorarioFormDialog from '@/features/rh/components/HorarioFormDialog';
 
 const HorariosScreen = () => {
-  const user = useAuthStore((s) => s.user);
-  const userFk = user?.pk;
-
   const [apenasActivos, setApenasActivos] = useState(true);
-  const { horarios, isLoading, error, criar, isCriando, editar, isEditando } = useHorarios({ user_fk: userFk, activos: apenasActivos });
+  // Sem user_fk: mostra os horários de todos os colaboradores (igual ao frontend-v2,
+  // que só filtra por utilizador no cartão pessoal do hub, não neste ecrã de gestão)
+  const { horarios, isLoading, error, criar, isCriando, editar, isEditando } = useHorarios({ activos: apenasActivos });
   const { lookups } = useRhLookups();
 
   const [search, setSearch] = useState('');
@@ -30,7 +28,7 @@ const HorariosScreen = () => {
     if (!search.trim()) return horarios;
     const q = search.trim().toLowerCase();
     return horarios.filter((h) =>
-      [h.descr, h.jornada_descr].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
+      [h.colaborador_nome, h.descr, h.jornada_descr].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
     );
   }, [horarios, search]);
 
@@ -102,13 +100,13 @@ const HorariosScreen = () => {
                   <View style={[styles.iconWrap, { backgroundColor: COLORS.primarySurface }]}>
                     <MaterialIcons name="schedule" size={16} color={COLORS.primary} />
                   </View>
-                  <Text style={styles.descrText} numberOfLines={1}>{item.descr}</Text>
+                  <Text style={styles.descrText} numberOfLines={1}>{item.colaborador_nome || item.descr}</Text>
                   <Chip compact style={{ backgroundColor: item.activo ? COLORS.successSurface : COLORS.overlay }} textStyle={{ fontSize: 10, color: item.activo ? COLORS.success : COLORS.textSecondary }}>
                     {item.activo ? 'Activo' : 'Inactivo'}
                   </Chip>
                 </View>
                 <Text style={styles.diasText}>
-                  {item.jornada_descr} · {item.hora_entrada?.slice(0, 5)} → {item.hora_saida?.slice(0, 5)}{almoco}
+                  {item.descr}{item.descr ? ' · ' : ''}{item.jornada_descr} · {item.hora_entrada?.slice(0, 5)} → {item.hora_saida?.slice(0, 5)}{almoco}
                 </Text>
                 <Text style={styles.motivoText}>
                   Desde {fmtDate(item.data_inicio)}{item.data_fim ? ` até ${fmtDate(item.data_fim)}` : ''}
@@ -131,7 +129,6 @@ const HorariosScreen = () => {
         onSave={handleSave}
         isSaving={isCriando || isEditando}
         initial={selected}
-        userFk={userFk}
         tiposJornada={lookups.tipos_jornada}
       />
 
