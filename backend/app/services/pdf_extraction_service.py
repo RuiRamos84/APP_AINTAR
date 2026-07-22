@@ -39,14 +39,22 @@ def _normalize(value):
 
 
 def _parse_data_pt(value):
-    """Converte 'DD/MM/AAAA' (com ou sem hora) para date."""
+    """Converte 'DD/MM/AAAA' ou 'AAAA-MM-DD' (com ou sem hora) para date.
+
+    A CESAB já emitiu boletins nos dois formatos consoante a versão do
+    software do laboratório — aceitar ambos evita que a data fique por
+    identificar quando o formato muda."""
     if not value:
         return None
     match = re.match(r'(\d{2})/(\d{2})/(\d{4})', value)
-    if not match:
-        return None
-    d, m, y = match.groups()
-    return date(int(y), int(m), int(d))
+    if match:
+        d, m, y = match.groups()
+        return date(int(y), int(m), int(d))
+    match = re.match(r'(\d{4})-(\d{2})-(\d{2})', value)
+    if match:
+        y, m, d = match.groups()
+        return date(int(y), int(m), int(d))
+    return None
 
 
 def _parse_numero(token):
@@ -75,10 +83,10 @@ def _extract_header(texto):
     m = re.search(r'Controlo:\s*(\w+)', texto)
     header['controlo'] = m.group(1) if m else None
 
-    m = re.search(r'\bColheita:\s*(\d{2}/\d{2}/\d{4})', texto)
+    m = re.search(r'\bColheita:\s*(\d{2}/\d{2}/\d{4}|\d{4}-\d{2}-\d{2})', texto)
     header['data_colheita'] = _parse_data_pt(m.group(1)) if m else None
 
-    m = re.search(r'Emiss[ãa]o:\s*(\d{2}/\d{2}/\d{4})', texto)
+    m = re.search(r'Emiss[ãa]o:\s*(\d{2}/\d{2}/\d{4}|\d{4}-\d{2}-\d{2})', texto)
     header['data_emissao'] = _parse_data_pt(m.group(1)) if m else None
 
     local_norm = _normalize(header.get('local_colheita'))
