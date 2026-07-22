@@ -14,6 +14,7 @@ import { useAuth } from '@/core/contexts/AuthContext';
 import { usePermissions } from '@/core/contexts/PermissionContext';
 import { useReservations } from '../hooks/useReservations';
 import { useVehicles } from '../hooks/useVehicles';
+import { useMaintenances } from '../hooks/useMaintenances';
 import ReservationFormModal from '../components/ReservationFormModal.jsx';
 import AvailabilityStrip from '../components/AvailabilityStrip.jsx';
 
@@ -25,7 +26,12 @@ const formatDateTime = (str) => {
 
 const getInitials = (name) => {
   if (!name) return '?';
-  return name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 };
 
 const statusColor = {
@@ -55,8 +61,16 @@ const ReservationsList = ({
   const { hasPermission } = usePermissions();
   const canManageOthers = hasPermission('fleet.reservations.manage');
 
-  const { reservations, isLoading, cancelReservation, isCancelling, completeReservation, isCompleting } = useReservations();
+  const {
+    reservations,
+    isLoading,
+    cancelReservation,
+    isCancelling,
+    completeReservation,
+    isCompleting,
+  } = useReservations();
   const { vehicles } = useVehicles();
+  const { maintenances } = useMaintenances();
   const [cancelTarget, setCancelTarget] = useState(null);
   const [completeTarget, setCompleteTarget] = useState(null);
   const [returnKm, setReturnKm] = useState('');
@@ -81,7 +95,10 @@ const ReservationsList = ({
   const handleConfirmComplete = async () => {
     if (!completeTarget) return;
     try {
-      await completeReservation({ id: completeTarget.pk, km: returnKm ? parseInt(returnKm, 10) : undefined });
+      await completeReservation({
+        id: completeTarget.pk,
+        km: returnKm ? parseInt(returnKm, 10) : undefined,
+      });
       setCompleteTarget(null);
       setReturnKm('');
     } catch {
@@ -89,129 +106,194 @@ const ReservationsList = ({
     }
   };
 
-  const columns = useMemo(() => [
-    {
-      field: 'licence',
-      headerName: 'Matrícula',
-      width: 140,
-      renderCell: ({ value }) => (
-        <Cell>
-          {value
-            ? <Chip label={value} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, letterSpacing: 1.2 }} />
-            : <Typography variant="body2" color="text.disabled">—</Typography>}
-        </Cell>
-      ),
-    },
-    {
-      field: 'brand',
-      headerName: 'Veículo',
-      flex: 1,
-      minWidth: 160,
-      valueGetter: (value, row) => `${row.brand ?? ''} ${row.model ?? ''}`.trim(),
-      renderCell: ({ row }) => (
-        <Cell>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={600} lineHeight={1.3} noWrap>{row.brand}</Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>{row.model}</Typography>
-          </Box>
-        </Cell>
-      ),
-    },
-    {
-      field: 'client_name',
-      headerName: 'Colaborador',
-      flex: 1,
-      minWidth: 170,
-      renderCell: ({ value }) => (
-        <Cell>
-          {value ? (
-            <>
-              <Avatar sx={{ width: 28, height: 28, fontSize: '0.7rem', bgcolor: 'secondary.main', flexShrink: 0 }}>
-                {getInitials(value)}
-              </Avatar>
-              <Typography variant="body2" sx={{ ml: 1 }} noWrap>{value}</Typography>
-            </>
-          ) : (
-            <Typography variant="body2" color="text.disabled">—</Typography>
-          )}
-        </Cell>
-      ),
-    },
-    {
-      field: 'start_time',
-      headerName: 'Início',
-      width: 160,
-      type: 'dateTime',
-      valueGetter: (value) => formatDateTime(value),
-      renderCell: ({ row }) => {
-        const d = formatDateTime(row.start_time);
-        return <Cell>{d ? <Typography variant="body2">{d.toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' })}</Typography> : '—'}</Cell>;
-      },
-    },
-    {
-      field: 'end_time',
-      headerName: 'Fim previsto',
-      width: 160,
-      type: 'dateTime',
-      valueGetter: (value) => formatDateTime(value),
-      renderCell: ({ row }) => {
-        const d = formatDateTime(row.end_time);
-        return <Cell>{d ? <Typography variant="body2">{d.toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' })}</Typography> : '—'}</Cell>;
-      },
-    },
-    {
-      field: 'destination',
-      headerName: 'Destino',
-      flex: 1,
-      minWidth: 160,
-      renderCell: ({ value }) => (
-        <Cell><Typography variant="body2" noWrap>{value || '—'}</Typography></Cell>
-      ),
-    },
-    {
-      field: 'estado_atual',
-      headerName: 'Estado',
-      width: 130,
-      renderCell: ({ value }) => (
-        <Cell><Chip label={value} size="small" color={statusColor[value] || 'default'} /></Cell>
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: 'Ações',
-      width: 130,
-      sortable: false,
-      filterable: false,
-      renderCell: ({ row }) => {
-        if (!canEditRow(row) || !isActiveState(row)) {
-          return <Cell justify="center"><Typography variant="body2" color="text.disabled">—</Typography></Cell>;
-        }
-        return (
-          <Cell justify="center">
-            <Tooltip title="Editar reserva">
-              <IconButton size="small" onClick={() => onEditReservation(row)}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Concluir (viatura entregue)">
-              <IconButton size="small" color="success" onClick={() => setCompleteTarget(row)}>
-                <CheckIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Cancelar reserva">
-              <IconButton size="small" color="error" onClick={() => setCancelTarget(row)}>
-                <CancelIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+  const columns = useMemo(
+    () => [
+      {
+        field: 'licence',
+        headerName: 'Matrícula',
+        width: 140,
+        renderCell: ({ value }) => (
+          <Cell>
+            {value ? (
+              <Chip
+                label={value}
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ fontWeight: 700, letterSpacing: 1.2 }}
+              />
+            ) : (
+              <Typography variant="body2" color="text.disabled">
+                —
+              </Typography>
+            )}
           </Cell>
-        );
+        ),
       },
-    },
-  ], [canEditRow, onEditReservation]);
+      {
+        field: 'brand',
+        headerName: 'Veículo',
+        flex: 1,
+        minWidth: 160,
+        valueGetter: (value, row) => `${row.brand ?? ''} ${row.model ?? ''}`.trim(),
+        renderCell: ({ row }) => (
+          <Cell>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={600} lineHeight={1.3} noWrap>
+                {row.brand}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {row.model}
+              </Typography>
+            </Box>
+          </Cell>
+        ),
+      },
+      {
+        field: 'client_name',
+        headerName: 'Colaborador',
+        flex: 1,
+        minWidth: 170,
+        renderCell: ({ value }) => (
+          <Cell>
+            {value ? (
+              <>
+                <Avatar
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    fontSize: '0.7rem',
+                    bgcolor: 'secondary.main',
+                    flexShrink: 0,
+                  }}
+                >
+                  {getInitials(value)}
+                </Avatar>
+                <Typography variant="body2" sx={{ ml: 1 }} noWrap>
+                  {value}
+                </Typography>
+              </>
+            ) : (
+              <Typography variant="body2" color="text.disabled">
+                —
+              </Typography>
+            )}
+          </Cell>
+        ),
+      },
+      {
+        field: 'start_time',
+        headerName: 'Início',
+        width: 160,
+        type: 'dateTime',
+        valueGetter: (value) => formatDateTime(value),
+        renderCell: ({ row }) => {
+          const d = formatDateTime(row.start_time);
+          return (
+            <Cell>
+              {d ? (
+                <Typography variant="body2">
+                  {d.toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' })}
+                </Typography>
+              ) : (
+                '—'
+              )}
+            </Cell>
+          );
+        },
+      },
+      {
+        field: 'end_time',
+        headerName: 'Fim previsto',
+        width: 160,
+        type: 'dateTime',
+        valueGetter: (value) => formatDateTime(value),
+        renderCell: ({ row }) => {
+          const d = formatDateTime(row.end_time);
+          return (
+            <Cell>
+              {d ? (
+                <Typography variant="body2">
+                  {d.toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' })}
+                </Typography>
+              ) : (
+                '—'
+              )}
+            </Cell>
+          );
+        },
+      },
+      {
+        field: 'destination',
+        headerName: 'Destino',
+        flex: 1,
+        minWidth: 160,
+        renderCell: ({ value }) => (
+          <Cell>
+            <Typography variant="body2" noWrap>
+              {value || '—'}
+            </Typography>
+          </Cell>
+        ),
+      },
+      {
+        field: 'estado_atual',
+        headerName: 'Estado',
+        width: 130,
+        renderCell: ({ value }) => (
+          <Cell>
+            <Chip label={value} size="small" color={statusColor[value] || 'default'} />
+          </Cell>
+        ),
+      },
+      {
+        field: 'actions',
+        headerName: 'Ações',
+        width: 130,
+        sortable: false,
+        filterable: false,
+        renderCell: ({ row }) => {
+          if (!canEditRow(row) || !isActiveState(row)) {
+            return (
+              <Cell justify="center">
+                <Typography variant="body2" color="text.disabled">
+                  —
+                </Typography>
+              </Cell>
+            );
+          }
+          return (
+            <Cell justify="center">
+              <Tooltip title="Editar reserva">
+                <IconButton size="small" onClick={() => onEditReservation(row)}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Concluir (viatura entregue)">
+                <IconButton size="small" color="success" onClick={() => setCompleteTarget(row)}>
+                  <CheckIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Cancelar reserva">
+                <IconButton size="small" color="error" onClick={() => setCancelTarget(row)}>
+                  <CancelIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Cell>
+          );
+        },
+      },
+    ],
+    [canEditRow, onEditReservation]
+  );
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <AvailabilityStrip vehicles={vehicles} reservations={reservations} />
+      <AvailabilityStrip
+        vehicles={vehicles}
+        reservations={reservations}
+        maintenances={maintenances}
+      />
 
       <DataGrid
         rows={filteredReservations}
@@ -265,7 +347,10 @@ const ReservationsList = ({
         type="success"
         loading={isCompleting}
         onConfirm={handleConfirmComplete}
-        onCancel={() => { setCompleteTarget(null); setReturnKm(''); }}
+        onCancel={() => {
+          setCompleteTarget(null);
+          setReturnKm('');
+        }}
       >
         <TextField
           label="Km de retorno"

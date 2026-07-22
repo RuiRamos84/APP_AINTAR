@@ -109,6 +109,8 @@ export const SocketProvider = ({ children }) => {
         // nível de topo para o NotificationCenter navegar sem saber do shape interno.
         ...(n.metadata?.task_id != null && { taskId: n.metadata.task_id }),
         ...(n.metadata?.document_id != null && { documentId: n.metadata.document_id }),
+        ...(n.metadata?.tb_vehicle != null && { tbVehicle: n.metadata.tb_vehicle }),
+        ...(n.metadata?.maintenance_pk != null && { maintenancePk: n.metadata.maintenance_pk }),
       })),
     [centralFeed]
   );
@@ -385,11 +387,14 @@ export const SocketProvider = ({ children }) => {
    * Tarefas vivem agora na tabela central — invalidar o feed garante que o
    * badge por-item (derivado dele) e o sino refletem o estado lido.
    */
-  const handleTaskNotificationsUpdated = useCallback((data) => {
-    const { taskId } = data;
-    if (taskId == null) return;
-    queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central });
-  }, [queryClient]);
+  const handleTaskNotificationsUpdated = useCallback(
+    (data) => {
+      const { taskId } = data;
+      if (taskId == null) return;
+      queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.central });
+    },
+    [queryClient]
+  );
 
   // ========================================================================
   // ACTIONS
