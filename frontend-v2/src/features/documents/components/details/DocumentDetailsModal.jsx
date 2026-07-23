@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -147,6 +147,9 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
   const [reopenUserId, setReopenUserId] = useState('');
   const [representativeDialogOpen, setRepresentativeDialogOpen] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [descOverflowing, setDescOverflowing] = useState(false);
+  const descriptionRef = useRef(null);
 
   // Extract identifiers
   const { pk: documentPk, regnumber: documentRegNumber } = documentData || {};
@@ -171,6 +174,19 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
   const { hasPermission, isAdmin } = usePermissionContext();
   const canReplicate = hasPermission('docs.edit');
   const canReopen = isAdmin();
+
+  // Descrição do pedido: colapsa quando excede o limite de linhas, para não
+  // dominar o modal e ofuscar os detalhes da entidade na sidebar
+  useEffect(() => {
+    setDescExpanded(false);
+  }, [document?.pk]);
+
+  useEffect(() => {
+    const el = descriptionRef.current;
+    if (el) {
+      setDescOverflowing(el.scrollHeight > el.clientHeight + 1);
+    }
+  }, [document?.memo]);
 
   // Auto-detect ownership from document data when not explicitly passed by parent
   const effectiveIsOwner   = isOwner   || (document && currentUser && Number(document.who)    === Number(currentUser.user_id)) || (documentData?.who && currentUser && Number(documentData.who) === Number(currentUser.user_id));
@@ -464,7 +480,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
    * Sidebar content - reused in both desktop sidebar and mobile collapsible
    */
   const sidebarContent = document ? (
-    <Box sx={{ display: 'flex', flexDirection: isTablet ? 'row' : 'column', gap: isTablet ? 3 : 2.5, flexWrap: 'wrap' }}>
+    <Box sx={{ display: 'flex', flexDirection: isTablet ? 'row' : 'column', gap: isTablet ? 3 : 2.5, flexWrap: isTablet ? 'wrap' : 'nowrap' }}>
       <InfoRow
         icon={<CalendarIcon fontSize="small" />}
         label="DATA DE SUBMISSÃO"
@@ -573,6 +589,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: 1,
+        flexShrink: 0,
         background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.04)} 0%, ${alpha(theme.palette.background.default, 0.6)} 100%)`,
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, minWidth: 0, flex: 1 }}>
@@ -649,6 +666,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
             alignItems: 'center',
             justifyContent: 'space-between',
             cursor: 'pointer',
+            flexShrink: 0,
             borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
             bgcolor: alpha(theme.palette.primary.main, 0.02),
             '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
@@ -668,7 +686,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
         </Box>
       )}
       {isTablet && (
-        <Collapse in={sidebarExpanded}>
+        <Collapse in={sidebarExpanded} sx={{ flexShrink: 0 }}>
           <Box sx={{ px: 2, py: 2, borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: alpha(theme.palette.background.paper, 0.8) }}>
             {sidebarContent}
           </Box>
@@ -681,6 +699,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
         {!isTablet && (
           <Box sx={{
             width: 280,
+            flexShrink: 0,
             borderRight: `1px solid ${theme.palette.divider}`,
             p: 2.5,
             background: `linear-gradient(180deg, ${alpha(theme.palette.background.paper, 0.8)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
@@ -737,9 +756,36 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
                       minHeight: 60
                     }}
                   >
-                    <Typography variant="body1" style={{ whiteSpace: 'pre-wrap' }}>
+                    <Typography
+                      ref={descriptionRef}
+                      variant="body1"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        ...(descExpanded ? {} : {
+                          display: '-webkit-box',
+                          WebkitLineClamp: 6,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }),
+                      }}
+                    >
                       {document.memo || 'Sem descrição.'}
                     </Typography>
+                    {descOverflowing && (
+                      <Button
+                        size="small"
+                        onClick={() => setDescExpanded((v) => !v)}
+                        endIcon={
+                          <ExpandMoreIcon
+                            fontSize="small"
+                            sx={{ transform: descExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+                          />
+                        }
+                        sx={{ mt: 1, textTransform: 'none', fontWeight: 600, px: 1 }}
+                      >
+                        {descExpanded ? 'Ver menos' : 'Ver mais'}
+                      </Button>
+                    )}
                   </Paper>
                 </Box>
 
@@ -1125,6 +1171,7 @@ const DocumentDetailsModal = ({ open, onClose, documentData, isOwner = false, is
         alignItems: 'center',
         gap: 1,
         flexWrap: 'wrap',
+        flexShrink: 0,
       }}>
         <Box sx={{ display: 'flex', gap: 1 }}>
           {canDownloadComprovativo && (
