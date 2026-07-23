@@ -44,6 +44,7 @@ const FeriasScreen = () => {
       showError(selected ? 'Pedido actualizado.' : 'Pedido de férias criado.');
     } catch (err: any) {
       showError(err?.response?.data?.error ?? 'Erro ao guardar pedido.');
+      throw err; // impede o diálogo de fechar como se tivesse sido guardado
     }
   };
 

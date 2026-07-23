@@ -7,6 +7,7 @@ export type RhStackParamList = {
   RhColaborador: undefined;
   Ponto: undefined;
   Ferias: undefined;
+  Faltas: undefined;
   Participacao: undefined;
   Horarios: undefined;
   Piquete: undefined;

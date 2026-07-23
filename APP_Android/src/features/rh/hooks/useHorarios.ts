@@ -50,7 +50,6 @@ export const useHorarios = (params: HorariosParams = {}) => {
       });
       return data;
     },
-    enabled: !!params.user_fk,
     staleTime: 5 * 60 * 1000,
   });
 

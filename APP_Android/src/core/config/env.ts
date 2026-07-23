@@ -46,11 +46,6 @@ const ENV = {
   WS_URL:       getWsUrl(),
   APP_TITLE:    process.env.EXPO_PUBLIC_APP_TITLE ?? 'AINTAR APP',
   IS_DEV:       process.env.EXPO_PUBLIC_NODE_ENV === 'development',
-  // Modelos de reconhecimento facial (tiny_face_detector, face_landmark_68_tiny,
-  // face_recognition) — os mesmos ficheiros estáticos já publicados pelo frontend-v2,
-  // reutilizados aqui para calcular o descritor facial dentro da app (ver plano RH).
-  FACE_MODELS_URL:
-    process.env.EXPO_PUBLIC_FACE_MODELS_URL ?? 'https://app.aintar.pt/v2/models/face-api',
 };
 
 export default ENV;

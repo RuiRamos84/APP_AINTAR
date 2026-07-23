@@ -15,10 +15,10 @@ import { faceErrorMsg } from '@/features/rh/utils/rhUtils';
 import useAuthStore from '@/features/auth/store/authStore';
 
 // Uma única fotografia + uma única análise (não repetida em loop): no Android
-// cada verificação é uma captura completa (gravar, redimensionar,
-// descodificar, analisar em CPU), muito mais cara do que "espreitar" um
-// frame de vídeo ao vivo como a versão web faz. Uma contagem decrescente dá
-// tempo à pessoa para se posicionar.
+// cada verificação é uma captura completa enviada ao servidor (que calcula o
+// descritor — ver useFaceApi), ao contrário da versão web que "espreita"
+// frames de vídeo ao vivo localmente. Uma contagem decrescente dá tempo à
+// pessoa para se posicionar.
 const COUNTDOWN_SECONDS = 3;
 const NO_FACE_RETRY_DELAY_MS = 1200;
 
@@ -41,6 +41,7 @@ const FaceVerifyScreen = ({ route, navigation }: Props) => {
   const [phase, setPhase] = useState<Phase>('loading');
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
   const [errorMsg, setErrorMsg] = useState('');
+  const [participacaoCriada, setParticipacaoCriada] = useState(false);
   const cameraRef = useRef<CameraView | null>(null);
   const mountedRef = useRef(true);
   const capturingRef = useRef(false);
@@ -112,7 +113,7 @@ const FaceVerifyScreen = ({ route, navigation }: Props) => {
     }
 
     try {
-      await registar({
+      const result = await registar({
         tt_evento_fk: eventoFk,
         latitude: lat,
         longitude: lon,
@@ -122,7 +123,14 @@ const FaceVerifyScreen = ({ route, navigation }: Props) => {
       });
       if (!mountedRef.current) return;
       setPhase('success');
-      setTimeout(() => navigation.goBack(), 900);
+      // Regresso (evento 6) sem Saída Temporária imediatamente anterior gera
+      // uma Participação de ausência parcial por justificar — dar tempo ao
+      // utilizador de ver o aviso e ir justificar, em vez do fecho automático.
+      if (result?.participacao_criada) {
+        setParticipacaoCriada(true);
+      } else {
+        setTimeout(() => navigation.goBack(), 900);
+      }
     } catch (err: any) {
       if (!mountedRef.current) return;
       setPhase('error');
@@ -246,20 +254,40 @@ const FaceVerifyScreen = ({ route, navigation }: Props) => {
         {phase === 'noFace' && <Text style={styles.hint}>Rosto não detectado — vamos tentar novamente</Text>}
         {phase === 'verifying' && <Text style={styles.hint}>A verificar identidade…</Text>}
         {phase === 'error' && <Text style={[styles.hint, { color: COLORS.error }]}>{errorMsg || loadError}</Text>}
-        {phase === 'success' && <Text style={styles.hint}>Rosto reconhecido! A registar…</Text>}
+        {phase === 'success' && !participacaoCriada && <Text style={styles.hint}>Rosto reconhecido! A registar…</Text>}
+        {phase === 'success' && participacaoCriada && (
+          <Text style={styles.hint}>
+            Regresso registado. Ausência parcial criada automaticamente — escolha o motivo legal em Participações antes de submeter o mapa mensal.
+          </Text>
+        )}
 
         <View style={styles.actions}>
           {phase === 'error' ? (
             <Button mode="contained" onPress={retry} style={styles.btn}>Tentar novamente</Button>
           ) : null}
-          <Button
-            mode="outlined"
-            onPress={() => navigation.goBack()}
-            disabled={phase === 'success' || isRegistando}
-            style={styles.btn}
-          >
-            Cancelar
-          </Button>
+          {participacaoCriada ? (
+            <>
+              <Button
+                mode="contained"
+                onPress={() => navigation.navigate('Participacao')}
+                style={styles.btn}
+              >
+                Justificar agora
+              </Button>
+              <Button mode="outlined" onPress={() => navigation.goBack()} style={styles.btn}>
+                Mais tarde
+              </Button>
+            </>
+          ) : (
+            <Button
+              mode="outlined"
+              onPress={() => navigation.goBack()}
+              disabled={phase === 'success' || isRegistando}
+              style={styles.btn}
+            >
+              Cancelar
+            </Button>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

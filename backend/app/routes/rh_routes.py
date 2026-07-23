@@ -8,7 +8,7 @@ from app.utils.logger import get_logger
 from sqlalchemy import text
 from ..services.rh_face_service import (
     get_face_status, enroll_face, verify_face, reset_face_templates, get_face_users_status,
-    get_consent_status, register_consent, erase_face_data,
+    get_consent_status, register_consent, erase_face_data, compute_descriptor_from_photo,
 )
 from ..services.rh_gestao_service import (
     get_pendentes, get_equipa, workflow_bulk,
@@ -733,6 +733,17 @@ def face_enroll_route():
     claims = get_jwt()
     user_fk = claims.get('user_id')
     return enroll_face(request.get_json(), user_fk, current_user)
+
+
+@bp.route('/rh/face/descriptor', methods=['POST'])
+@jwt_required()
+@token_required
+@require_permission('rh.edit')
+@api_error_handler
+def face_descriptor_route():
+    claims = get_jwt()
+    user_fk = claims.get('user_id')
+    return compute_descriptor_from_photo(request.get_json(), user_fk)
 
 
 @bp.route('/rh/face/verify', methods=['POST'])
