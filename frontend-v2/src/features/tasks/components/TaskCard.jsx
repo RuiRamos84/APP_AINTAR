@@ -266,7 +266,9 @@ export const TaskCard = ({
     <Box
       sx={{
         opacity: isDragging ? 0.5 : 1,
-        transition: 'opacity 0.2s',
+        transform: isDragging ? 'scale(1.02)' : 'scale(1)',
+        boxShadow: isDragging ? (theme) => theme.shadows[6] : 'none',
+        transition: 'opacity 0.2s, transform 0.2s, box-shadow 0.2s',
         position: 'relative',
       }}
     >
@@ -282,7 +284,7 @@ export const TaskCard = ({
           bgcolor: hasNotification
             ? alpha(theme.palette.error.main, 0.05)
             : 'background.paper',
-          transition: 'all 0.2s ease',
+          transition: 'box-shadow 0.2s ease, transform 0.2s ease',
           '&:hover': compact
             ? {}
             : {
@@ -302,9 +304,10 @@ export const TaskCard = ({
         <AnimatePresence>
           {hasNotification && (
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
               style={{
                 position: 'absolute',
                 top: -8,

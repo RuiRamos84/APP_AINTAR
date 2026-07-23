@@ -30,7 +30,7 @@ const spin = keyframes`
 `;
 
 const blink = keyframes`
-  0%, 80%, 100% { transform: scale(0); opacity: 0; }
+  0%, 80%, 100% { transform: scale(0.9); opacity: 0; }
   40%            { transform: scale(1); opacity: 1; }
 `;
 

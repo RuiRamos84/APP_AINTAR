@@ -1,6 +1,7 @@
 /**
  * AppPieChart — Recharts pie/donut chart with scrollable custom legend
  */
+import { useRef, useEffect } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -35,6 +36,10 @@ const AppPieChart = ({
   const theme = useTheme();
   const ts = tooltipStyle(theme);
   const palette = colors ?? CHART_PALETTE;
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    hasMountedRef.current = true;
+  }, []);
 
   if (!data.length) return null;
 
@@ -60,7 +65,9 @@ const AppPieChart = ({
               labelLine={false}
               label={renderCustomLabel}
               animationBegin={0}
-              animationDuration={700}
+              animationDuration={300}
+              animationEasing="ease-out"
+              isAnimationActive={!hasMountedRef.current}
             >
               {data.map((_, idx) => (
                 <Cell key={idx} fill={palette[idx % palette.length]} />

@@ -162,7 +162,7 @@ export const NotificationCenter = () => {
           sx={{
             mr: 2,
             color: theme.palette.text.secondary,
-            transition: 'all 0.2s',
+            transition: 'color 0.2s, background-color 0.2s, transform 0.2s',
             '&:hover': {
               color: theme.palette.primary.main,
               bgcolor: alpha(theme.palette.primary.main, 0.1),
@@ -236,7 +236,7 @@ export const NotificationCenter = () => {
                 fontWeight: 600,
                 fontSize: '0.875rem',
                 borderRadius: 2,
-                transition: 'all 0.2s',
+                transition: 'background-color 0.2s, color 0.2s',
               },
               '& .MuiTabs-indicator': {
                 height: 0,
@@ -289,7 +289,7 @@ export const NotificationCenter = () => {
                   px: 2,
                   py: 1.5,
                   borderBottom: `1px solid ${alpha(theme.palette.divider, 0.05)}`,
-                  transition: 'all 0.2s',
+                  transition: 'background-color 0.2s',
                   bgcolor: notification.read
                     ? 'transparent'
                     : alpha(theme.palette.primary.main, 0.04),

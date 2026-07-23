@@ -138,7 +138,7 @@ export const TaskColumn = ({
     borderWidth: 2,
     borderStyle: 'dashed',
     borderRadius: 2,
-    transition: 'all 0.3s ease',
+    transition: 'background-color 0.3s ease, border-color 0.3s ease',
   };
 
   return (

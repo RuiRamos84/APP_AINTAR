@@ -5,6 +5,7 @@
 
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { useMediaQuery } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { getTheme } from '@/styles/theme';
@@ -53,7 +54,8 @@ const queryClient = new QueryClient({
  */
 function AppThemeProvider({ children }) {
   const theme = useUIStore((state) => state.theme);
-  const muiTheme = getTheme(theme);
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const muiTheme = getTheme(theme, prefersReducedMotion);
 
   return (
     <ThemeProvider theme={muiTheme}>

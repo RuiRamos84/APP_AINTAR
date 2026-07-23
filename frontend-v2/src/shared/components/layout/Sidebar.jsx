@@ -143,7 +143,7 @@ export const Sidebar = ({
           mx: 1,
           borderRadius: 2,
           mb: 0.5,
-          transition: 'all 0.2s ease-in-out',
+          transition: 'background 0.2s ease-in-out, color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out',
           '&.Mui-selected': {
             background: `linear-gradient(135deg, ${moduleColor}, ${alpha(moduleColor, 0.75)})`,
             color: 'white',
@@ -175,9 +175,8 @@ export const Sidebar = ({
           primaryTypographyProps={{ fontWeight: active ? 600 : 400, fontSize: '0.88rem', noWrap: true }}
           sx={{
             opacity: collapsed ? 0 : 1,
-            width: collapsed ? 0 : 'auto',
             overflow: 'hidden',
-            transition: 'all 0.2s',
+            transition: 'opacity 0.2s ease',
             m: 0,
           }}
         />
@@ -272,7 +271,7 @@ export const Sidebar = ({
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
             gap: 1.5,
-            transition: 'all 0.3s ease',
+            transition: 'background-color 0.3s ease',
           }}
         >
           <activeModule.icon sx={{ color: moduleColor, fontSize: 22, flexShrink: 0 }} />
@@ -340,7 +339,7 @@ export const Sidebar = ({
                   border: `2px solid ${isConnected ? '#4caf50' : '#f44336'}`,
                   bgcolor: alpha(isConnected ? '#4caf50' : '#f44336', 0.08),
                   color: isConnected ? 'success.main' : 'error.main',
-                  transition: 'all 0.2s',
+                  transition: 'background-color 0.2s, transform 0.2s',
                   '&:hover': {
                     bgcolor: alpha(isConnected ? '#4caf50' : '#f44336', 0.18),
                     transform: 'scale(1.1)',

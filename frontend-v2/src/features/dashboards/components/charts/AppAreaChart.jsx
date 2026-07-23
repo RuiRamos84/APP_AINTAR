@@ -1,6 +1,7 @@
 /**
  * AppAreaChart — Recharts area chart with gradient fill (for trend/time-series data)
  */
+import { useRef, useEffect } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -20,6 +21,10 @@ const AppAreaChart = ({
   const theme = useTheme();
   const ts = tooltipStyle(theme);
   const palette = colors ?? CHART_PALETTE;
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    hasMountedRef.current = true;
+  }, []);
 
   if (!data.length) return null;
 
@@ -71,6 +76,10 @@ const AppAreaChart = ({
             fill={`url(#grad_${key})`}
             dot={{ r: 4, fill: palette[idx % palette.length], strokeWidth: 0 }}
             activeDot={{ r: 6 }}
+            animationBegin={0}
+            animationDuration={300}
+            animationEasing="ease-out"
+            isAnimationActive={!hasMountedRef.current}
           />
         ))}
       </AreaChart>

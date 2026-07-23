@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { easingTokensFramer, durationTokens } from '@/styles/tokens';
 
 const variants = {
   initial: { opacity: 0, y: 8 },
@@ -6,17 +7,25 @@ const variants = {
   exit: { opacity: 0, y: -4 },
 };
 
-// Cubic bezier: snappy ease-out — rápido sem parecer abrupto
-const easing = [0.25, 0.46, 0.45, 0.94];
+const reducedVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+};
 
 export const PageTransition = ({ children }) => {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <motion.div
       initial="initial"
       animate="animate"
       exit="exit"
-      variants={variants}
-      transition={{ duration: 0.22, ease: easing }}
+      variants={prefersReducedMotion ? reducedVariants : variants}
+      transition={{
+        duration: prefersReducedMotion ? 0.15 : durationTokens.base / 1000,
+        ease: easingTokensFramer.out,
+      }}
       style={{ width: '100%', height: '100%' }}
     >
       {children}

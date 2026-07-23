@@ -341,6 +341,7 @@ export const TaskBoardPage = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
               >
                 <Box mb={{ xs: 2, sm: 3 }}>
                   <QuickFilters filters={filters} onChange={handleFiltersChange} />

@@ -1,5 +1,6 @@
 import { Box, Container, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
+import { easingTokensFramer, durationTokens } from '@/styles/tokens';
 
 export const PortalPageHeader = ({ title, subtitle, actions }) => {
   return (
@@ -7,7 +8,7 @@ export const PortalPageHeader = ({ title, subtitle, actions }) => {
       component={motion.div}
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: durationTokens.base / 1000, ease: easingTokensFramer.out }}
       sx={{
         bgcolor: 'background.paper',
         borderBottom: '1px solid',

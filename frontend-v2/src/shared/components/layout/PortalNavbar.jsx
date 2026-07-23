@@ -140,7 +140,7 @@ export const PortalNavbar = () => {
                         width: 34, height: 34, bgcolor: 'primary.main',
                         fontSize: '0.85rem', fontWeight: 'bold',
                         border: '2px solid rgba(27,94,142,0.2)',
-                        transition: 'all 0.2s',
+                        transition: 'border-color 0.2s, transform 0.2s',
                         '&:hover': { borderColor: '#1B5E8E', transform: 'scale(1.05)' },
                       }}
                     >
