@@ -18,7 +18,7 @@ import {
 /**
  * Criar tema baseado no modo (light/dark)
  */
-export const getTheme = (mode = 'light') => {
+export const getTheme = (mode = 'light', prefersReducedMotion = false) => {
   const isLight = mode === 'light';
 
   return createTheme({
@@ -168,6 +168,17 @@ export const getTheme = (mode = 'light') => {
       isLight ? elevationTokens[16] : elevationDarkTokens[16],
       isLight ? elevationTokens[24] : elevationDarkTokens[24],
     ],
+
+    // Transições — neutralizadas quando o utilizador pede reduced motion
+    transitions: prefersReducedMotion
+      ? {
+          duration: {
+            shortest: 1, shorter: 1, short: 1,
+            standard: 1, complex: 1,
+            enteringScreen: 1, leavingScreen: 1,
+          },
+        }
+      : undefined,
 
     // Componentes MUI - Overrides globais
     components: {

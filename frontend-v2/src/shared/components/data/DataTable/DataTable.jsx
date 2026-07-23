@@ -58,7 +58,6 @@ import {
   KeyboardArrowDown as ExpandIcon,
   KeyboardArrowUp as CollapseIcon,
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
 import { TableSkeleton } from '@/shared/components/feedback';
 import { EmptyState } from '@/shared/components/feedback';
 import PropTypes from 'prop-types';
@@ -287,14 +286,9 @@ export const DataTable = ({
     return (
       <Box sx={sx}>
         {paginatedData.map((row, index) => (
-          <motion.div
-            key={row.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-          >
+          <Box key={row.id}>
             {mobileCardRenderer(row, index)}
-          </motion.div>
+          </Box>
         ))}
 
         <TablePagination
@@ -451,109 +445,102 @@ export const DataTable = ({
           </TableHead>
 
           <TableBody>
-            <AnimatePresence>
-              {paginatedData.map((row, index) => {
-                const rowKey = row.id || row.pk || index;
-                const isSelected = selected.includes(rowKey);
-                const isExpanded = expandedRows.has(rowKey);
+            {paginatedData.map((row, index) => {
+              const rowKey = row.id || row.pk || index;
+              const isSelected = selected.includes(rowKey);
+              const isExpanded = expandedRows.has(rowKey);
 
-                return (
-                  // Usamos Fragment para suportar a linha expandida adjacente
-                  <React.Fragment key={rowKey}>
-                    <TableRow
-                      component={motion.tr}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      hover={hover}
-                      onClick={onRowClick ? () => onRowClick(row) : undefined}
-                      role="checkbox"
-                      aria-checked={isSelected}
-                      tabIndex={-1}
-                      selected={isSelected}
-                      sx={{
-                        cursor: onRowClick ? 'pointer' : 'default',
-                        ...(striped && index % 2 !== 0 && {
-                          bgcolor: (theme) => alpha(theme.palette.action.hover, 0.04),
-                        }),
-                      }}
-                    >
-                      {/* Seleção */}
-                      {selectable && (
-                        <TableCell padding="checkbox">
-                          <Checkbox
-                            color="primary"
-                            checked={isSelected}
-                            onChange={(e) => handleSelectRow(e, rowKey)}
-                            inputProps={{
-                              'aria-labelledby': `table-checkbox-${index}`,
-                            }}
-                          />
-                        </TableCell>
-                      )}
-
-                      {/* Expansão */}
-                      {expandable && (
-                        <TableCell padding="checkbox">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleExpand(rowKey);
-                            }}
-                          >
-                            {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
-                          </IconButton>
-                        </TableCell>
-                      )}
-
-                      {/* Dados */}
-                      {visibleColumns.map((column) => (
-                        <TableCell
-                          key={column.id}
-                          align={column.align || 'left'}
-                        >
-                          {column.render
-                            ? column.render(row[column.id], row, index)
-                            : row[column.id]}
-                        </TableCell>
-                      ))}
-
-                      {/* Ações */}
-                      {rowActions.length > 0 && (
-                        <TableCell align="right" padding="checkbox">
-                          <IconButton size="small">
-                            <MoreIcon />
-                          </IconButton>
-                        </TableCell>
-                      )}
-                    </TableRow>
-
-                    {/* Linha expandida */}
-                    {expandable && (
-                      <TableRow>
-                        <TableCell
-                          style={{ paddingBottom: 0, paddingTop: 0 }}
-                          colSpan={
-                            visibleColumns.length +
-                            (selectable ? 1 : 0) +
-                            (expandable ? 1 : 0) +
-                            (rowActions.length > 0 ? 1 : 0)
-                          }
-                        >
-                          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                            <Box sx={{ margin: 2 }}>
-                              {renderExpandedRow?.(row)}
-                            </Box>
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
+              return (
+                // Usamos Fragment para suportar a linha expandida adjacente
+                <React.Fragment key={rowKey}>
+                  <TableRow
+                    hover={hover}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    tabIndex={-1}
+                    selected={isSelected}
+                    sx={{
+                      cursor: onRowClick ? 'pointer' : 'default',
+                      ...(striped && index % 2 !== 0 && {
+                        bgcolor: (theme) => alpha(theme.palette.action.hover, 0.04),
+                      }),
+                    }}
+                  >
+                    {/* Seleção */}
+                    {selectable && (
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          color="primary"
+                          checked={isSelected}
+                          onChange={(e) => handleSelectRow(e, rowKey)}
+                          inputProps={{
+                            'aria-labelledby': `table-checkbox-${index}`,
+                          }}
+                        />
+                      </TableCell>
                     )}
-                  </React.Fragment>
-                );
-              })}
-            </AnimatePresence>
+
+                    {/* Expansão */}
+                    {expandable && (
+                      <TableCell padding="checkbox">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleExpand(rowKey);
+                          }}
+                        >
+                          {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
+                        </IconButton>
+                      </TableCell>
+                    )}
+
+                    {/* Dados */}
+                    {visibleColumns.map((column) => (
+                      <TableCell
+                        key={column.id}
+                        align={column.align || 'left'}
+                      >
+                        {column.render
+                          ? column.render(row[column.id], row, index)
+                          : row[column.id]}
+                      </TableCell>
+                    ))}
+
+                    {/* Ações */}
+                    {rowActions.length > 0 && (
+                      <TableCell align="right" padding="checkbox">
+                        <IconButton size="small">
+                          <MoreIcon />
+                        </IconButton>
+                      </TableCell>
+                    )}
+                  </TableRow>
+
+                  {/* Linha expandida */}
+                  {expandable && (
+                    <TableRow>
+                      <TableCell
+                        style={{ paddingBottom: 0, paddingTop: 0 }}
+                        colSpan={
+                          visibleColumns.length +
+                          (selectable ? 1 : 0) +
+                          (expandable ? 1 : 0) +
+                          (rowActions.length > 0 ? 1 : 0)
+                        }
+                      >
+                        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                          <Box sx={{ margin: 2 }}>
+                            {renderExpandedRow?.(row)}
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>

@@ -30,6 +30,7 @@ import {
   alpha,
 } from '@mui/material';
 import { useState, useMemo } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { useNavbarCompact } from '@/shared/hooks/useNavbarCompact';
 import MenuIcon from '@mui/icons-material/Menu';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -62,6 +63,7 @@ export const AppBar = ({ onMenuClick }) => {
   const { moduleId: currentModule } = useCurrentModule();
 
   const scrolled = useNavbarCompact();
+  const prefersReducedMotion = useReducedMotion();
 
   const { user, logoutUser, toggleVacationStatus } = useAuth();
   const { hasPermission, hasAnyPermission } = usePermissionContext();
@@ -114,11 +116,8 @@ export const AppBar = ({ onMenuClick }) => {
 
   // Dimensões que variam com o scroll
   const toolbarHeight = { xs: scrolled ? 48 : 64, sm: scrolled ? 54 : 72 };
-  const logoHeight   = { xs: scrolled ? 28 : 34, sm: scrolled ? 30 : 40 };
-  const tabHeight    = scrolled ? 54 : 64;
-  const avatarSize   = scrolled ? 36 : 40; // mínimo 36px — touch target WCAG
-  const tabFontSize  = scrolled ? '0.74rem' : '0.79rem';
-  const tabIconSize  = scrolled ? 18 : 20;
+  const tabHeight = scrolled ? 54 : 64;
+  const avatarSize = scrolled ? 36 : 40; // mínimo 36px — touch target WCAG
 
   // Glass: mais opaco + sombra mais forte quando scrolled
   const glassStyles = {
@@ -146,7 +145,7 @@ export const AppBar = ({ onMenuClick }) => {
         minHeight: toolbarHeight,
         px: { xs: 1.5, sm: 3 },
         gap: 1,
-        transition: 'min-height 0.35s ease',
+        transition: prefersReducedMotion ? 'none' : 'min-height 0.35s ease',
       }}>
 
         {/* Mobile: hamburger quando há módulo ativo */}
@@ -171,7 +170,16 @@ export const AppBar = ({ onMenuClick }) => {
               component="img"
               src={logoSrc}
               alt="AINTAR"
-              sx={{ height: logoHeight, width: 'auto', transition: 'height 0.35s ease' }}
+              sx={{
+                height: { xs: 34, sm: 40 }, // always the larger, un-scaled size
+                width: 'auto',
+                transform: {
+                  xs: scrolled ? 'scale(0.8235)' : 'scale(1)', // 28/34
+                  sm: scrolled ? 'scale(0.75)' : 'scale(1)', // 30/40
+                },
+                transformOrigin: 'left center',
+                transition: prefersReducedMotion ? 'none' : 'transform 0.35s ease',
+              }}
             />
           </IconButton>
         </Tooltip>
@@ -196,16 +204,18 @@ export const AppBar = ({ onMenuClick }) => {
             sx={{
               minHeight: tabHeight,
               mr: 2,
-              transition: 'min-height 0.35s ease',
+              transition: prefersReducedMotion ? 'none' : 'min-height 0.35s ease',
               '& .MuiTab-root': {
-                minHeight: tabHeight,
+                minHeight: tabHeight, // UNCHANGED — kept, do not convert
                 textTransform: 'none',
                 fontWeight: 500,
-                fontSize: tabFontSize,
+                fontSize: '0.79rem', // always the larger, un-scaled size
+                transform: scrolled ? 'scale(0.9367)' : 'scale(1)', // 0.74/0.79
+                transformOrigin: 'left center',
                 minWidth: { sm: 80, md: 100 },
                 px: { sm: 1.5, md: 2 },
                 color: theme.palette.text.secondary,
-                transition: 'min-height 0.35s ease, font-size 0.35s ease, color 0.2s',
+                transition: prefersReducedMotion ? 'none' : 'min-height 0.35s ease, transform 0.35s ease, color 0.2s',
               },
             }}
           >
@@ -219,7 +229,13 @@ export const AppBar = ({ onMenuClick }) => {
                 }}
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <module.icon sx={{ fontSize: tabIconSize, transition: 'font-size 0.35s ease' }} />
+                    <module.icon
+                      sx={{
+                        fontSize: 20, // always the larger, un-scaled size
+                        transform: scrolled ? 'scale(0.9)' : 'scale(1)', // 18/20
+                        transition: prefersReducedMotion ? 'none' : 'transform 0.35s ease',
+                      }}
+                    />
                     {isDesktop && <span>{module.label}</span>}
                   </Box>
                 }
@@ -278,7 +294,7 @@ export const AppBar = ({ onMenuClick }) => {
               p: 0.5,
               border: `2px solid ${user?.vacation ? alpha(theme.palette.warning.main, 0.5) : accentColor ? alpha(accentColor, 0.4) : alpha(theme.palette.primary.main, 0.2)}`,
               borderRadius: '50%',
-              transition: 'all 0.35s ease',
+              transition: 'border-color 0.35s ease',
               '&:hover': { borderColor: user?.vacation ? theme.palette.warning.main : accentColor || theme.palette.primary.main },
             }}
           >
@@ -298,7 +314,7 @@ export const AppBar = ({ onMenuClick }) => {
                   bgcolor: user?.vacation ? 'warning.main' : accentColor || theme.palette.primary.main,
                   fontSize: scrolled ? '0.75rem' : '0.85rem',
                   fontWeight: 'bold',
-                  transition: 'all 0.35s ease',
+                  transition: 'width 0.35s ease, height 0.35s ease, font-size 0.35s ease, background-color 0.2s ease',
                 }}
               >
                 {getInitials(user?.user_name)}

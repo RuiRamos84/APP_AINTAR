@@ -1,6 +1,7 @@
 /**
  * AppLineChart — Recharts line chart (multi-series support)
  */
+import { useRef, useEffect } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, ReferenceLine,
@@ -21,6 +22,10 @@ const AppLineChart = ({
   const theme = useTheme();
   const ts = tooltipStyle(theme);
   const palette = colors ?? CHART_PALETTE;
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    hasMountedRef.current = true;
+  }, []);
 
   if (!data.length) return null;
 
@@ -66,6 +71,10 @@ const AppLineChart = ({
             strokeWidth={2.5}
             dot={dots ? { r: 4, strokeWidth: 0, fill: palette[idx % palette.length] } : false}
             activeDot={{ r: 6 }}
+            animationBegin={0}
+            animationDuration={300}
+            animationEasing="ease-out"
+            isAnimationActive={!hasMountedRef.current}
           />
         ))}
       </LineChart>

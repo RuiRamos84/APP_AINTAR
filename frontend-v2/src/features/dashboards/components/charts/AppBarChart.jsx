@@ -2,6 +2,7 @@
  * AppBarChart — Recharts-based vertical/horizontal bar chart
  * Props: data, xKey, yKeys[], color, horizontal, height, animate
  */
+import { useRef, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList, Legend,
@@ -21,6 +22,10 @@ const AppBarChart = ({
 }) => {
   const theme = useTheme();
   const ts = tooltipStyle(theme);
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    hasMountedRef.current = true;
+  }, []);
 
   if (!data.length) return null;
 
@@ -89,6 +94,10 @@ const AppBarChart = ({
                 fill={palette[idx % palette.length]}
                 radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
                 maxBarSize={40}
+                animationBegin={0}
+                animationDuration={300}
+                animationEasing="ease-out"
+                isAnimationActive={!hasMountedRef.current}
               >
                 {showLabels && <LabelList dataKey={key} position={horizontal ? 'right' : 'top'} formatter={(v) => v > 0 ? formatValue(v) : ''} style={{ fontSize: 10, fill: theme.palette.text.secondary }} />}
               </Bar>
@@ -98,6 +107,10 @@ const AppBarChart = ({
               dataKey={yKeys?.[0] ?? 'value'}
               radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
               maxBarSize={50}
+              animationBegin={0}
+              animationDuration={300}
+              animationEasing="ease-out"
+              isAnimationActive={!hasMountedRef.current}
             >
               {data.map((_, idx) => (
                 <Cell key={idx} fill={palette[idx % palette.length]} />

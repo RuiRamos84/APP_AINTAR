@@ -251,7 +251,13 @@ export const TaskModal = ({ open, task, onClose, onSuccess }) => {
                 label="Nova"
                 color="error"
                 size="small"
-                sx={{ animation: 'pulse 2s infinite' }}
+                sx={{
+                  animation: 'pulse 2s infinite',
+                  '@keyframes pulse': {
+                    '0%, 100%': { transform: 'scale(1)' },
+                    '50%': { transform: 'scale(1.1)' },
+                  },
+                }}
               />
             )}
 

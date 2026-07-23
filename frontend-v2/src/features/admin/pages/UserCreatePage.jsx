@@ -12,6 +12,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Box,
   Container,
@@ -37,9 +38,39 @@ import {
 } from '@mui/icons-material';
 import { createUserAdmin } from '@/services/userService';
 import { notification } from '@/core/services/notification';
-import { FadeIn } from '@/shared/components/animation';
 import { useProfiles } from '@/core/contexts/MetadataContext';
 import { useAssociates } from '@/core/hooks/useMetaData';
+
+/**
+ * Fade in local a esta página — cópia de shared/components/animation/FadeIn,
+ * eliminado por não ter outros consumidores (ver plans/016).
+ */
+const FadeIn = ({ children, direction = null, delay = 0, duration = 0.3, distance = 20 }) => {
+  const getInitial = () => {
+    const initial = { opacity: 0 };
+    switch (direction) {
+      case 'up':
+        return { ...initial, y: distance };
+      case 'down':
+        return { ...initial, y: -distance };
+      case 'left':
+        return { ...initial, x: distance };
+      case 'right':
+        return { ...initial, x: -distance };
+      default:
+        return initial;
+    }
+  };
+  return (
+    <motion.div
+      initial={getInitial()}
+      animate={{ opacity: 1, x: 0, y: 0 }}
+      transition={{ duration, delay, ease: 'easeOut' }}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 const UserCreatePage = () => {
   const navigate = useNavigate();

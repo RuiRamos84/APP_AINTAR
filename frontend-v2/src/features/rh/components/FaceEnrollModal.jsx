@@ -11,6 +11,7 @@ import {
   PrivacyTip as PrivacyIcon,
 } from '@mui/icons-material';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 import { useFaceApi, averageDescriptors } from '../hooks/useFaceApi';
 import { enrollFace, getFaceConsent, registerFaceConsent } from '../services/rhService';
 
@@ -384,7 +385,15 @@ export default function FaceEnrollModal({ open, onClose, onSuccess }) {
           )}
 
           {phase === 'done' && (
-            <Stack alignItems="center" spacing={2} sx={{ py: 2 }}>
+            <Stack
+              component={motion.div}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+              alignItems="center"
+              spacing={2}
+              sx={{ py: 2 }}
+            >
               <OkIcon sx={{ fontSize: 64, color: 'success.main' }} />
               <Typography variant="h6" fontWeight={700} color="success.main">
                 Rosto registado com sucesso!
