@@ -1,0 +1,32 @@
+# O .easignore SUBSTITUI o .gitignore no upload para o EAS Build —
+# tem de repetir as entradas do .gitignore e acrescentar as extras.
+
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Environment
+.env
+.env.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Native builds (geridos pelo EAS)
+android/
+ios/
+
+# Micro-serviço de reconhecimento facial — corre no servidor, não faz parte
+# da app; os modelos (~7 MB) só inchavam o upload de cada build.
+face-service/

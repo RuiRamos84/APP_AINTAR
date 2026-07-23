@@ -7,11 +7,13 @@ import { COLORS, SPACING, RADIUS } from '@/shared/theme/colors';
 import ExpandablePicker, { PickerOption } from '@/shared/components/ExpandablePicker';
 import { useDraft } from '@/shared/hooks/useDraft';
 import type { Horario, CreateHorarioPayload, EditHorarioPayload } from '@/features/rh/hooks/useHorarios';
+import { useColaboradores } from '@/features/rh/hooks/useRhLookups';
 import type { LookupItem } from '@/features/rh/hooks/useRhLookups';
 
 const JORNADA_CONTINUA_FK = 2;
 
 interface HorarioDraft {
+  colaboradorFk: string;
   jornadaFk: string;
   descr: string;
   horaEntrada: string;
@@ -28,7 +30,6 @@ interface HorarioFormDialogProps {
   onSave: (payload: CreateHorarioPayload | { pk: number; data: EditHorarioPayload }) => Promise<unknown>;
   isSaving: boolean;
   initial: Horario | null;
-  userFk?: number;
   tiposJornada: LookupItem[];
 }
 
@@ -49,9 +50,11 @@ const timeToDate = (hhmm: string) => {
 };
 const dateToHHMM = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-const HorarioFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, userFk, tiposJornada }: HorarioFormDialogProps) => {
+const HorarioFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, tiposJornada }: HorarioFormDialogProps) => {
   const { loadDraft, saveDraft, clearDraft } = useDraft<HorarioDraft>('horario_form');
+  const { colaboradores } = useColaboradores();
 
+  const [colaboradorFk, setColaboradorFk] = useState('');
   const [jornadaFk, setJornadaFk] = useState('1');
   const [descr, setDescr] = useState('');
   const [horaEntrada, setHoraEntrada] = useState('08:00');
@@ -66,6 +69,7 @@ const HorarioFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, user
   useEffect(() => {
     if (!visible) { setDraftLoaded(false); return; }
     if (initial) {
+      setColaboradorFk(String(initial.user_fk));
       setJornadaFk(String(initial.tt_jornada_fk));
       setDescr(initial.descr || '');
       setHoraEntrada(toHHMM(initial.hora_entrada) || '08:00');
@@ -79,6 +83,7 @@ const HorarioFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, user
     }
     loadDraft().then((d) => {
       if (d) {
+        setColaboradorFk(d.colaboradorFk || '');
         setJornadaFk(d.jornadaFk);
         setDescr(d.descr);
         setHoraEntrada(d.horaEntrada);
@@ -88,6 +93,7 @@ const HorarioFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, user
         setDataInicio(d.dataInicio);
         setDataFim(d.dataFim);
       } else {
+        setColaboradorFk('');
         setJornadaFk('1');
         setDescr('');
         setHoraEntrada('08:00');
@@ -103,18 +109,19 @@ const HorarioFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, user
 
   useEffect(() => {
     if (draftLoaded && !initial) {
-      saveDraft({ jornadaFk, descr, horaEntrada, horaSaida, horaInicioAlmoco, horaFimAlmoco, dataInicio, dataFim });
+      saveDraft({ colaboradorFk, jornadaFk, descr, horaEntrada, horaSaida, horaInicioAlmoco, horaFimAlmoco, dataInicio, dataFim });
     }
-  }, [jornadaFk, descr, horaEntrada, horaSaida, horaInicioAlmoco, horaFimAlmoco, dataInicio, dataFim, draftLoaded, initial]);
+  }, [colaboradorFk, jornadaFk, descr, horaEntrada, horaSaida, horaInicioAlmoco, horaFimAlmoco, dataInicio, dataFim, draftLoaded, initial]);
 
   const isContinua = jornadaFk === String(JORNADA_CONTINUA_FK);
   const jornadaOptions: PickerOption[] = tiposJornada.map((t) => ({ value: String(t.pk), label: t.descr as string }));
-  const canSave = !!jornadaFk && !!descr.trim() && !!dataInicio;
+  const colaboradorOptions: PickerOption[] = colaboradores.map((c) => ({ value: String(c.pk), label: c.name }));
+  const canSave = !!jornadaFk && !!descr.trim() && !!dataInicio && (!!initial || !!colaboradorFk);
 
   const handleSave = async () => {
     if (!canSave) return;
     const payload: CreateHorarioPayload = {
-      user_fk: userFk as number,
+      user_fk: Number(colaboradorFk),
       tt_jornada_fk: Number(jornadaFk),
       descr: descr.trim(),
       hora_entrada: horaEntrada,
@@ -149,6 +156,13 @@ const HorarioFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, user
         <Dialog.Title style={styles.title}>{initial ? 'Editar Horário' : 'Novo Horário'}</Dialog.Title>
         <Dialog.ScrollArea style={{ maxHeight: 520 }}>
           <ScrollView contentContainerStyle={styles.content}>
+            {!initial && (
+              <>
+                <Text style={styles.label}>Colaborador *</Text>
+                <ExpandablePicker placeholder="Seleccionar colaborador" value={colaboradorFk} options={colaboradorOptions} onSelect={setColaboradorFk} />
+              </>
+            )}
+
             <Text style={styles.label}>Tipo de Jornada</Text>
             <ExpandablePicker placeholder="Seleccionar jornada" value={jornadaFk} options={jornadaOptions} onSelect={setJornadaFk} />
 
@@ -194,13 +208,13 @@ const HorarioFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, user
               />
             )}
 
-            <Text style={styles.label}>Data Início *</Text>
+            <Text style={styles.label}>Início Vigência *</Text>
             <TouchableOpacity style={styles.dateTrigger} onPress={() => setShowPicker('inicio')}>
               <MaterialIcons name="calendar-today" size={18} color={COLORS.primary} />
               <Text style={styles.dateText}>{dataInicio ? fmtDatePt(dataInicio) : 'Seleccionar data'}</Text>
             </TouchableOpacity>
 
-            <Text style={styles.label}>Data Fim (opcional)</Text>
+            <Text style={styles.label}>Fim Vigência (opcional)</Text>
             <TouchableOpacity style={styles.dateTrigger} onPress={() => setShowPicker('fim')}>
               <MaterialIcons name="calendar-today" size={18} color={COLORS.primary} />
               <Text style={styles.dateText}>{dataFim ? fmtDatePt(dataFim) : 'Sem data limite'}</Text>

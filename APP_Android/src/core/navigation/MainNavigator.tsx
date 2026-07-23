@@ -11,17 +11,15 @@ import RhHomeScreen from '@/features/rh/screens/RhHomeScreen';
 import RhColaboradorScreen from '@/features/rh/screens/RhColaboradorScreen';
 import PontoScreen from '@/features/rh/screens/PontoScreen';
 import FeriasScreen from '@/features/rh/screens/FeriasScreen';
+import FaltasScreen from '@/features/rh/screens/FaltasScreen';
 import ParticipacaoScreen from '@/features/rh/screens/ParticipacaoScreen';
 import HorariosScreen from '@/features/rh/screens/HorariosScreen';
 import PiqueteScreen from '@/features/rh/screens/PiqueteScreen';
 import MapaFeriasScreen from '@/features/rh/screens/MapaFeriasScreen';
 import AvalScreen from '@/features/aval/screens/AvalScreen';
 import AvalAnalyticsScreen from '@/features/aval/screens/AvalAnalyticsScreen';
-// Carregados só quando o utilizador entra mesmo nestes ecrãs — ambos puxam
-// o @vladmandic/face-api + TensorFlow.js (biblioteca pesada, com efeitos
-// secundários de registo de backend ao ser importada), que de outra forma
-// arrancaria logo no boot da app por causa desta importação estática, ainda
-// que o utilizador nunca chegue a usar reconhecimento facial nessa sessão.
+// Carregados só quando o utilizador entra mesmo nestes ecrãs — mantém o
+// arranque da app leve para quem nunca usa o reconhecimento facial na sessão.
 const FaceEnrollScreen = React.lazy(() => import('@/features/rh/screens/FaceEnrollScreen'));
 const FaceVerifyScreen = React.lazy(() => import('@/features/rh/screens/FaceVerifyScreen'));
 
@@ -229,6 +227,19 @@ const RhNavigator = () => (
           <Breadcrumb
             parent="Recursos Humanos"
             current="Participação"
+            onParentPress={() => navigation.navigate('RhHome')}
+          />
+        ),
+      })}
+    />
+    <RhStack.Screen
+      name="Faltas"
+      component={FaltasScreen}
+      options={({ navigation }) => ({
+        headerTitle: () => (
+          <Breadcrumb
+            parent="Recursos Humanos"
+            current="Faltas"
             onParentPress={() => navigation.navigate('RhHome')}
           />
         ),

@@ -49,6 +49,31 @@ export interface RegistarPontoEventoPayload {
   face_score: number | null;
 }
 
+export interface RegistarPontoResult {
+  message?: string;
+  // Regresso (evento 6) sem "Saída Temporária" imediatamente anterior gera
+  // automaticamente uma Participação de ausência parcial por justificar.
+  participacao_criada?: boolean;
+}
+
+export interface CorrigirPontoPayload {
+  ts_registo: string;
+  notas: string;
+}
+
+export interface AdicionarPontoAdminPayload {
+  user_fk: number;
+  tt_evento_fk: number;
+  ts_registo: string;
+  notas: string;
+}
+
+export interface SubmeterBloqueio {
+  dias_sem_registo?: string[];
+  dias_incompletos?: string[];
+  dias_por_justificar?: string[];
+}
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 export const usePontoHoje = (userFk?: number) => {
@@ -123,14 +148,32 @@ export const usePontoActions = (userFk?: number) => {
   };
 
   const registar = useMutation({
-    mutationFn: (payload: RegistarPontoEventoPayload) =>
-      apiClient.post('/rh/ponto/evento', { user_fk: userFk, ...payload }),
-    onSuccess: invalidate,
+    mutationFn: async (payload: RegistarPontoEventoPayload) => {
+      const { data } = await apiClient.post<RegistarPontoResult>('/rh/ponto/evento', { user_fk: userFk, ...payload });
+      return data;
+    },
+    onSuccess: (data) => {
+      invalidate();
+      if (data?.participacao_criada) {
+        qc.invalidateQueries({ queryKey: ['rh-participacoes'] });
+      }
+    },
   });
 
   const submeter = useMutation({
     mutationFn: ({ ano, mes, notas }: { ano: number; mes: number; notas?: string }) =>
       apiClient.post('/rh/ponto/submeter', { user_fk: userFk, ano, mes, notas }),
+    onSuccess: invalidate,
+  });
+
+  const corrigir = useMutation({
+    mutationFn: ({ pk, data }: { pk: number; data: CorrigirPontoPayload }) =>
+      apiClient.put(`/rh/ponto/${pk}/corrigir`, data),
+    onSuccess: invalidate,
+  });
+
+  const adicionarAdmin = useMutation({
+    mutationFn: (data: AdicionarPontoAdminPayload) => apiClient.post('/rh/ponto/admin/evento', data),
     onSuccess: invalidate,
   });
 
@@ -145,6 +188,10 @@ export const usePontoActions = (userFk?: number) => {
     isRegistando: registar.isPending,
     submeter: submeter.mutateAsync,
     isSubmetendo: submeter.isPending,
+    corrigir: corrigir.mutateAsync,
+    isCorrigindo: corrigir.isPending,
+    adicionarAdmin: adicionarAdmin.mutateAsync,
+    isAdicionandoAdmin: adicionarAdmin.isPending,
     workflow: workflow.mutateAsync,
     isWorkflow: workflow.isPending,
   };

@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform, ScrollView } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Platform, ScrollView, Keyboard, KeyboardAvoidingView } from 'react-native';
 import { Dialog, Portal, Button, TextInput, Text, Chip } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '@/shared/theme/colors';
 import ExpandablePicker, { PickerOption } from '@/shared/components/ExpandablePicker';
 import { useDraft } from '@/shared/hooks/useDraft';
+import { useScrollToEndOnKeyboard } from '@/shared/hooks/useScrollToEndOnKeyboard';
+import { toLocalISODate } from '@/shared/utils/dateUtils';
 import useAuthStore from '@/features/auth/store/authStore';
 import { useConflitosFerias } from '@/features/rh/hooks/useFerias';
 import type { Ferias, CreateFeriasPayload, EditFeriasPayload } from '@/features/rh/hooks/useFerias';
@@ -29,8 +31,12 @@ interface FeriasFormDialogProps {
 
 const toISODate = (v?: string | null) => {
   if (!v) return '';
+  // Já vem em "YYYY-MM-DD..." — usar os caracteres directamente evita
+  // qualquer conversão de fuso horário (ver toLocalISODate para o porquê).
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(v);
+  if (match) return match[1];
   const d = new Date(v);
-  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  return isNaN(d.getTime()) ? '' : toLocalISODate(d);
 };
 
 const fmtDatePt = (v: string) => (v ? new Date(v + 'T00:00:00').toLocaleDateString('pt-PT') : '');
@@ -38,6 +44,9 @@ const fmtDatePt = (v: string) => (v ? new Date(v + 'T00:00:00').toLocaleDateStri
 const FeriasFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, tiposFerias }: FeriasFormDialogProps) => {
   const user = useAuthStore((s) => s.user);
   const { loadDraft, saveDraft, clearDraft } = useDraft<FeriasDraft>('ferias_form');
+  const scrollRef = useRef<ScrollView>(null);
+
+  useScrollToEndOnKeyboard(scrollRef, visible);
 
   const [tipoFk, setTipoFk] = useState('');
   const [dataInicio, setDataInicio] = useState('');
@@ -90,20 +99,26 @@ const FeriasFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, tipos
   const handleSave = async () => {
     if (!canSave) return;
     const payload = { tt_tipo_fk: Number(tipoFk), data_inicio: dataInicio, data_fim: dataFim, notas };
-    if (initial) await onSave({ pk: initial.pk, data: payload });
-    else {
-      clearDraft();
-      await onSave(payload);
+    try {
+      if (initial) await onSave({ pk: initial.pk, data: payload });
+      else await onSave(payload);
+    } catch {
+      // erro já mostrado pelo ecrã pai — mantém o diálogo aberto para o
+      // utilizador corrigir e tentar guardar de novo, em vez de descartar
+      // silenciosamente a edição.
+      return;
     }
+    if (!initial) clearDraft();
     onDismiss();
   };
 
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Dialog.Title style={styles.title}>{initial ? 'Editar Pedido de Férias' : 'Novo Pedido de Férias'}</Dialog.Title>
         <Dialog.ScrollArea style={{ maxHeight: 480 }}>
-          <ScrollView contentContainerStyle={styles.content}>
+          <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <Text style={styles.label}>Tipo</Text>
             <ExpandablePicker placeholder="Seleccionar tipo" value={tipoFk} options={tipoOptions} onSelect={setTipoFk} />
 
@@ -117,7 +132,7 @@ const FeriasFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, tipos
                 value={dataInicio ? new Date(dataInicio + 'T00:00:00') : new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                onChange={(_, d) => { setShowPickerInicio(false); if (d) setDataInicio(d.toISOString().slice(0, 10)); }}
+                onChange={(_, d) => { setShowPickerInicio(false); if (d) setDataInicio(toLocalISODate(d)); }}
               />
             )}
 
@@ -131,7 +146,7 @@ const FeriasFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, tipos
                 value={dataFim ? new Date(dataFim + 'T00:00:00') : new Date()}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                onChange={(_, d) => { setShowPickerFim(false); if (d) setDataFim(d.toISOString().slice(0, 10)); }}
+                onChange={(_, d) => { setShowPickerFim(false); if (d) setDataFim(toLocalISODate(d)); }}
               />
             )}
 
@@ -158,6 +173,10 @@ const FeriasFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, tipos
               numberOfLines={2}
               style={styles.input}
               outlineStyle={{ borderRadius: RADIUS.md }}
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={() => Keyboard.dismiss()}
+              right={<TextInput.Icon icon="arrow-right-bold-circle" onPress={() => Keyboard.dismiss()} />}
             />
           </ScrollView>
         </Dialog.ScrollArea>
@@ -173,6 +192,7 @@ const FeriasFormDialog = ({ visible, onDismiss, onSave, isSaving, initial, tipos
             Guardar
           </Button>
         </Dialog.Actions>
+        </KeyboardAvoidingView>
       </Dialog>
     </Portal>
   );

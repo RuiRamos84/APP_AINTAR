@@ -5,12 +5,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import useAuthStore from '@/features/auth/store/authStore';
 import { useParticipacoes, useMotivosParticipacao, preAvisoStatus, type Participacao } from '@/features/rh/hooks/useParticipacoes';
+import { useParticipacaoAnexos, type PickedFile } from '@/features/rh/hooks/useParticipacaoAnexos';
 import { COLORS, RADIUS, SPACING } from '@/shared/theme/colors';
 import { fmtDate, RH_COLOR } from '@/features/rh/utils/rhUtils';
 import EstadoBadge from '@/features/rh/components/EstadoBadge';
 import ParticipacaoFormDialog from '@/features/rh/components/ParticipacaoFormDialog';
 import ParticipacaoWorkflowDialog from '@/features/rh/components/ParticipacaoWorkflowDialog';
-import ParticipacaoAnexosManager from '@/features/rh/components/ParticipacaoAnexosManager';
 
 const PRE_AVISO_COLOR: Record<string, { bg: string; fg: string }> = {
   success: { bg: COLORS.successSurface, fg: COLORS.success },
@@ -27,12 +27,12 @@ const ParticipacaoScreen = () => {
   const params = isAdmin ? {} : { user_fk: user?.pk };
   const { participacoes, isLoading, error, criar, isCriando, editar, isEditando, workflow, isWorkflow } = useParticipacoes(params);
   const { motivos } = useMotivosParticipacao();
+  const { upload: uploadAnexos } = useParticipacaoAnexos();
 
   const [search, setSearch] = useState('');
   const [formVisible, setFormVisible] = useState(false);
   const [selected, setSelected] = useState<Participacao | null>(null);
   const [wfTarget, setWfTarget] = useState<Participacao | null>(null);
-  const [anexosTarget, setAnexosTarget] = useState<Participacao | null>(null);
   const [snackMsg, setSnackMsg] = useState('');
   const [snackVisible, setSnackVisible] = useState(false);
 
@@ -51,13 +51,23 @@ const ParticipacaoScreen = () => {
   const openCreate = () => { setSelected(null); setFormVisible(true); };
   const openEdit = (item: Participacao) => { setSelected(item); setFormVisible(true); };
 
-  const handleSave = async (payload: any) => {
+  const handleSave = async (payload: any, pendingFiles: PickedFile[] = []) => {
     try {
-      if (selected) await editar(payload);
-      else await criar(payload);
+      let pk: number | undefined;
+      if (selected) {
+        await editar(payload);
+        pk = selected.pk;
+      } else {
+        const res: any = await criar(payload);
+        pk = res?.data?.pk;
+      }
+      if (pendingFiles.length > 0 && pk) {
+        await uploadAnexos({ pk, files: pendingFiles });
+      }
       showMsg(selected ? 'Participação actualizada.' : 'Participação registada.');
     } catch (err: any) {
       showMsg(err?.response?.data?.error ?? 'Erro ao guardar participação.');
+      throw err; // impede o diálogo de fechar como se tivesse sido guardado
     }
   };
 
@@ -146,7 +156,7 @@ const ParticipacaoScreen = () => {
                     <IconButton icon="pencil" size={18} onPress={() => openEdit(item)} />
                   )}
                   <View>
-                    <IconButton icon="paperclip" size={18} onPress={() => setAnexosTarget(item)} />
+                    <IconButton icon="paperclip" size={18} onPress={() => openEdit(item)} />
                     {nDocs > 0 && <Badge style={styles.attachBadge} size={16}>{nDocs}</Badge>}
                   </View>
                   {canValidar && (
@@ -176,13 +186,6 @@ const ParticipacaoScreen = () => {
         target={wfTarget}
         onConfirm={handleWorkflow}
         isLoading={isWorkflow}
-      />
-
-      <ParticipacaoAnexosManager
-        visible={!!anexosTarget}
-        onDismiss={() => setAnexosTarget(null)}
-        participacao={anexosTarget}
-        onError={showMsg}
       />
 
       <Snackbar visible={snackVisible} onDismiss={() => setSnackVisible(false)} duration={3000} style={styles.snackbar}>

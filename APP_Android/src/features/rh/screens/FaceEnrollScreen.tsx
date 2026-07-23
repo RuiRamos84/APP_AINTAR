@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Text, Button, ActivityIndicator } from 'react-native-paper';
+import { Text, Button, ActivityIndicator, Checkbox } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -8,19 +8,32 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RhStackParamList } from '@/core/navigation/types';
 import { COLORS, SPACING, RADIUS } from '@/shared/theme/colors';
 import { useFaceApi } from '@/features/rh/hooks/useFaceApi';
-import { useEnrollFace } from '@/features/rh/hooks/useFace';
+import { useEnrollFace, fetchFaceConsent, registerFaceConsent } from '@/features/rh/hooks/useFace';
 import useAuthStore from '@/features/auth/store/authStore';
 
 // Uma única fotografia + uma única análise por passo (em vez de várias por
-// segundo): no Android cada verificação é uma captura completa (gravar,
-// redimensionar, descodificar, analisar em CPU), muito mais cara do que
-// "espreitar" um frame de vídeo ao vivo como a versão web faz. Uma contagem
-// decrescente dá tempo à pessoa para se posicionar, substituindo a
-// "confirmação por repetição" que a web consegue fazer de borla.
+// segundo): no Android cada passo é uma captura completa enviada ao servidor
+// (que calcula o descritor — ver useFaceApi), ao contrário da versão web que
+// "espreita" frames de vídeo ao vivo localmente. Uma contagem decrescente dá
+// tempo à pessoa para se posicionar, substituindo a "confirmação por
+// repetição" que a web consegue fazer de borla.
 const COUNTDOWN_SECONDS = 3;
 const TOTAL_CAPTURES = 8;
 const STEP_OK_DELAY_MS = 700;
 const NO_FACE_RETRY_DELAY_MS = 1200;
+
+// Mesma versão do aviso de privacidade que o frontend-v2 (FaceEnrollModal.jsx)
+// — subir nos DOIS sítios sempre que o texto mudar de conteúdo, para forçar
+// novo consentimento explícito no próximo enrolamento.
+const AVISO_PRIVACIDADE_VERSAO = '2026-07';
+
+const CONSENT_PONTOS = [
+  ['Finalidade', 'confirmar a sua identidade no registo de ponto, prevenindo registos feitos por terceiros em seu nome.'],
+  ['O que é guardado', 'um vetor matemático de 128 valores calculado a partir do seu rosto — nenhuma fotografia é armazenada.'],
+  ['Quem acede', 'apenas o sistema de comparação automática do ponto e o RH, em caso de gestão do registo.'],
+  ['Retenção', 'enquanto for colaborador da AINTAR, ou até pedir a remoção.'],
+  ['Os seus direitos', 'pode revogar este consentimento e pedir o apagamento definitivo dos dados a qualquer momento, contactando o RH.'],
+] as const;
 
 const INSTRUCTIONS = [
   'Olhe directamente para a câmara',
@@ -33,7 +46,17 @@ const INSTRUCTIONS = [
   'Regresse à posição frontal — última captura',
 ];
 
-type Phase = 'loading' | 'countdown' | 'capturing' | 'stepOk' | 'noFace' | 'saving' | 'done' | 'error';
+type Phase =
+  | 'checkingConsent'
+  | 'consent'
+  | 'loading'
+  | 'countdown'
+  | 'capturing'
+  | 'stepOk'
+  | 'noFace'
+  | 'saving'
+  | 'done'
+  | 'error';
 
 type Props = NativeStackScreenProps<RhStackParamList, 'FaceEnroll'>;
 
@@ -44,9 +67,11 @@ const FaceEnrollScreen = ({ navigation }: Props) => {
   const { mutateAsync: enrollFace } = useEnrollFace(user?.pk);
 
   const [step, setStep] = useState(0);
-  const [phase, setPhase] = useState<Phase>('loading');
+  const [phase, setPhase] = useState<Phase>('checkingConsent');
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
   const [errorMsg, setErrorMsg] = useState('');
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [consentSaving, setConsentSaving] = useState(false);
   const descriptorsRef = useRef<number[][]>([]);
   const cameraRef = useRef<CameraView | null>(null);
   const mountedRef = useRef(true);
@@ -57,7 +82,7 @@ const FaceEnrollScreen = ({ navigation }: Props) => {
     return () => { mountedRef.current = false; };
   }, []);
 
-  const initialize = useCallback(async () => {
+  const startCamera = useCallback(async () => {
     setPhase('loading');
     setErrorMsg('');
     if (!permission?.granted) {
@@ -74,6 +99,39 @@ const FaceEnrollScreen = ({ navigation }: Props) => {
     setPhase('countdown');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permission?.granted]);
+
+  // O backend recusa o enrolamento sem consentimento explícito activo (RGPD
+  // art.º 9.º) — verificar ANTES de abrir a câmara, como o frontend-v2 faz.
+  const initialize = useCallback(async () => {
+    setPhase('checkingConsent');
+    setErrorMsg('');
+    try {
+      const consent = await fetchFaceConsent();
+      if (!mountedRef.current) return;
+      if (consent.consentido) {
+        startCamera();
+        return;
+      }
+    } catch {
+      // Falha a verificar — por segurança, exige consentimento explícito
+    }
+    if (mountedRef.current) setPhase('consent');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startCamera]);
+
+  const handleAcceptConsent = useCallback(async () => {
+    setConsentSaving(true);
+    try {
+      await registerFaceConsent(AVISO_PRIVACIDADE_VERSAO);
+      if (mountedRef.current) startCamera();
+    } catch (err: any) {
+      if (mountedRef.current) {
+        setErrorMsg(err?.response?.data?.error ?? 'Erro ao registar consentimento.');
+      }
+    } finally {
+      if (mountedRef.current) setConsentSaving(false);
+    }
+  }, [startCamera]);
 
   useEffect(() => {
     initialize();
@@ -185,6 +243,62 @@ const FaceEnrollScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
       </View>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {phase === 'checkingConsent' && (
+          <View style={styles.consentCenter}>
+            <ActivityIndicator color="#fff" size="large" />
+            <Text style={styles.hint}>A verificar consentimento…</Text>
+          </View>
+        )}
+
+        {phase === 'consent' && (
+          <View style={styles.consentCard}>
+            <MaterialIcons name="privacy-tip" size={32} color={COLORS.warning} style={{ alignSelf: 'center' }} />
+            <Text style={styles.consentTitle}>Consentimento — dados biométricos</Text>
+            <Text style={styles.consentIntro}>
+              O registo facial usa dados biométricos — uma categoria especial de dados pessoais
+              (RGPD, art.º 9.º). É necessário o seu consentimento explícito antes de continuar.
+            </Text>
+            {CONSENT_PONTOS.map(([titulo, texto]) => (
+              <Text key={titulo} style={styles.consentItem}>
+                <Text style={{ fontWeight: '700' }}>{titulo}: </Text>
+                {texto}
+              </Text>
+            ))}
+            <TouchableOpacity
+              style={styles.consentCheckRow}
+              onPress={() => setConsentChecked((c) => !c)}
+              activeOpacity={0.7}
+            >
+              <Checkbox
+                status={consentChecked ? 'checked' : 'unchecked'}
+                color={COLORS.warning}
+                uncheckedColor="rgba(255,255,255,0.7)"
+                onPress={() => setConsentChecked((c) => !c)}
+              />
+              <Text style={styles.consentCheckLabel}>
+                Li e consinto o registo biométrico do meu rosto para efeitos de controlo de assiduidade.
+              </Text>
+            </TouchableOpacity>
+            {!!errorMsg && <Text style={[styles.hint, { color: COLORS.error }]}>{errorMsg}</Text>}
+            <View style={styles.actions}>
+              <Button
+                mode="contained"
+                onPress={handleAcceptConsent}
+                disabled={!consentChecked || consentSaving}
+                loading={consentSaving}
+                style={styles.btn}
+              >
+                Aceitar e continuar
+              </Button>
+              <Button mode="outlined" onPress={() => navigation.goBack()} textColor="#fff" style={styles.btn}>
+                Cancelar
+              </Button>
+            </View>
+          </View>
+        )}
+
+        {phase !== 'checkingConsent' && phase !== 'consent' && (
+          <>
         <Text style={styles.stepLabel}>Captura {Math.min(step + 1, TOTAL_CAPTURES)} de {TOTAL_CAPTURES}</Text>
         <Text style={styles.instruction}>{INSTRUCTIONS[step]}</Text>
 
@@ -225,7 +339,7 @@ const FaceEnrollScreen = ({ navigation }: Props) => {
           )}
         </View>
 
-        {phase === 'loading' && <Text style={styles.hint}>A preparar câmara e modelos…</Text>}
+        {phase === 'loading' && <Text style={styles.hint}>A preparar câmara…</Text>}
         {phase === 'countdown' && <Text style={styles.hint}>Prepare-se… a captura é automática</Text>}
         {phase === 'capturing' && <Text style={styles.hint}>A analisar…</Text>}
         {phase === 'noFace' && <Text style={styles.hint}>Rosto não detectado — vamos tentar novamente</Text>}
@@ -245,6 +359,8 @@ const FaceEnrollScreen = ({ navigation }: Props) => {
             </Button>
           )}
         </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -270,6 +386,23 @@ const styles = StyleSheet.create({
   hint: { color: '#fff', textAlign: 'center', marginTop: SPACING.sm, fontSize: 13 },
   actions: { marginTop: SPACING.lg, gap: SPACING.sm },
   btn: { borderRadius: RADIUS.pill },
+  consentCenter: { alignItems: 'center', gap: SPACING.sm },
+  consentCard: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    padding: SPACING.md,
+    gap: SPACING.xs,
+  },
+  consentTitle: { color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center', marginBottom: SPACING.xs },
+  consentIntro: { color: 'rgba(255,255,255,0.9)', fontSize: 13, lineHeight: 19, marginBottom: SPACING.xs },
+  consentItem: { color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 19 },
+  consentCheckRow: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.sm },
+  consentCheckLabel: { color: '#fff', fontSize: 13, lineHeight: 19, flex: 1, fontWeight: '600' },
 });
 
 export default FaceEnrollScreen;

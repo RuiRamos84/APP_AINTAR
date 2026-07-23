@@ -1,4 +1,7 @@
+import os
+
 import numpy as np
+import requests
 from flask import jsonify
 from sqlalchemy import text
 from app import cache
@@ -8,6 +11,14 @@ from app.utils.logger import get_logger
 from . import audit_service
 
 logger = get_logger(__name__)
+
+# Micro-serviço Node (face-service/) que corre o face-api com tfjs-node.
+# Calcula descritores 128-D no MESMO espaço vectorial dos templates criados
+# pelo frontend-v2 no browser — os thresholds e comparações abaixo mantêm-se.
+# Usado pela app Android, onde o motor JS (Hermes) é lento demais para
+# inferência local. Nunca exposto directamente: só o Flask lhe fala.
+FACE_SERVICE_URL = os.getenv('FACE_SERVICE_URL', 'http://127.0.0.1:5101')
+FACE_SERVICE_TIMEOUT = 30
 
 # Limiar de distância euclidiana: face-api.js recomenda 0.6; usamos 0.5 para maior rigor
 FACE_THRESHOLD = 0.50
@@ -179,6 +190,58 @@ def register_consent(data: dict, user_fk: int, current_user: str, ip: str = None
 
     logger.info(f'Consentimento biométrico registado: user={user_fk}, versao={versao}')
     return jsonify({'message': 'Consentimento registado.'}), 201
+
+
+# ---------------------------------------------------------------------------
+# Descritor a partir de foto (clientes sem capacidade de inferência local)
+# ---------------------------------------------------------------------------
+
+@api_error_handler
+def compute_descriptor_from_photo(data: dict, user_fk: int):
+    """
+    Recebe uma fotografia e devolve o descritor facial 128-D calculado pelo
+    face-service. O cliente usa depois esse descritor nos endpoints normais
+    de enroll/verify — o fluxo e as validações existentes não mudam.
+    data = { "image": "<base64 jpeg/png>", "minConfidence"?: float }
+    Devolve { detected: bool, descriptor: [float x128] | null, ms: int }
+    """
+    image = data.get('image') if data else None
+    if not image or not isinstance(image, str):
+        return jsonify({'error': "Campo 'image' (base64) em falta."}), 400
+
+    payload = {'image': image}
+    if isinstance(data.get('minConfidence'), (int, float)):
+        payload['minConfidence'] = data['minConfidence']
+
+    try:
+        resp = requests.post(
+            f'{FACE_SERVICE_URL}/descriptor',
+            json=payload,
+            timeout=FACE_SERVICE_TIMEOUT,
+        )
+    except requests.exceptions.RequestException as exc:
+        logger.error(f'face-service inacessível ({FACE_SERVICE_URL}): {exc}')
+        return jsonify({
+            'error': 'Serviço de reconhecimento facial indisponível. Tente novamente ou contacte o administrador.',
+        }), 503
+
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get('error', '')
+        except ValueError:
+            detail = ''
+        logger.error(f'face-service devolveu {resp.status_code}: {detail}')
+        return jsonify({'error': detail or 'Erro no serviço de reconhecimento facial.'}), 502
+
+    result = resp.json()
+    logger.info(
+        f"Face descriptor: user={user_fk}, detected={result.get('detected')}, ms={result.get('ms')}"
+    )
+    return jsonify({
+        'detected': bool(result.get('detected')),
+        'descriptor': result.get('descriptor'),
+        'ms': result.get('ms'),
+    }), 200
 
 
 # ---------------------------------------------------------------------------

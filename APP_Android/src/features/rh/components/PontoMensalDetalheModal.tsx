@@ -51,6 +51,7 @@ const PontoMensalDetalheModal = ({ visible, onDismiss, pendente }: PontoMensalDe
                 mes={mes as number}
                 onSubmeter={submeter}
                 isSubmetendo={isSubmetendo}
+                userFk={userFk as number}
               />
             )}
           </ScrollView>

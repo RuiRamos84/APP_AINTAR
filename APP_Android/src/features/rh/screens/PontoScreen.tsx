@@ -10,6 +10,7 @@ import { COLORS, SPACING, RADIUS } from '@/shared/theme/colors';
 import { fmtTime, MESES } from '@/features/rh/utils/rhUtils';
 import { usePontoHoje, usePontoActions, usePontoMes, usePontoMensal, useColaboradorPerfil, type PontoMensal } from '@/features/rh/hooks/usePonto';
 import { useFaceStatus, useFaceUsers, useResetFaceAdmin } from '@/features/rh/hooks/useFace';
+import { usePendentes } from '@/features/rh/hooks/useGestaoCentral';
 import PontoMonthCalendar from '@/features/rh/components/PontoMonthCalendar';
 import EstadoBadge from '@/features/rh/components/EstadoBadge';
 import WorkflowDialog from '@/features/rh/components/WorkflowDialog';
@@ -151,11 +152,16 @@ const HojeTab = ({ userFk }: { userFk: number }) => {
                 {registado ? (
                   <>
                     <Text style={[styles.cardTime, { color: ev.color }]}>{fmtTime(registado.ts_registo)}</Text>
-                    {registado.fonte === 'correcao' && <Chip compact style={styles.miniChip}>Corrigido</Chip>}
+                    {registado.fonte === 'correcao' && (
+                      <View style={styles.miniBadge}>
+                        <Text style={[styles.miniBadgeText, { color: COLORS.textSecondary }]}>Corrigido</Text>
+                      </View>
+                    )}
                     {registado.fonte === 'app+face' && (
-                      <Chip compact style={[styles.miniChip, { backgroundColor: COLORS.successSurface }]} textStyle={{ color: COLORS.success }}>
-                        Face OK
-                      </Chip>
+                      <View style={[styles.miniBadge, { backgroundColor: COLORS.successSurface }]}>
+                        <MaterialIcons name="verified" size={12} color={COLORS.success} />
+                        <Text style={[styles.miniBadgeText, { color: COLORS.success }]}>Face OK</Text>
+                      </View>
                     )}
                   </>
                 ) : (
@@ -209,6 +215,7 @@ const HistoricoTab = ({ userFk }: { userFk: number }) => {
           mes={mes}
           onSubmeter={submeter}
           isSubmetendo={isSubmetendo}
+          userFk={userFk}
         />
       )}
     </View>
@@ -361,15 +368,26 @@ const GestaoFacialTab = () => {
               <Text style={styles.rowName}>{u.name}</Text>
               <Text style={styles.rowMeta}>{u.enrolled ? `${u.template_count} descritores registados` : 'Sem rosto registado'}</Text>
             </View>
-            <Button
-              mode="outlined"
-              compact
-              textColor={COLORS.error}
-              disabled={!u.enrolled || isPending}
-              onPress={() => setConfirmUser({ user_fk: u.user_fk, name: u.name })}
-            >
-              Reset
-            </Button>
+            <View style={styles.facialStatusRow}>
+              {u.enrolled ? (
+                <Chip compact icon="face-recognition" style={{ backgroundColor: COLORS.successSurface }} textStyle={{ fontSize: 11, color: COLORS.success }}>
+                  Registado
+                </Chip>
+              ) : (
+                <Chip compact style={styles.outlineChip} textStyle={{ fontSize: 11, color: COLORS.textSecondary }}>
+                  Sem rosto
+                </Chip>
+              )}
+              <Button
+                mode="outlined"
+                compact
+                textColor={COLORS.error}
+                disabled={!u.enrolled || isPending}
+                onPress={() => setConfirmUser({ user_fk: u.user_fk, name: u.name })}
+              >
+                Reset
+              </Button>
+            </View>
           </View>
         ))
       )}
@@ -413,7 +431,14 @@ const PontoScreen = () => {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const userFk = user?.pk;
   const isAdmin = hasPermission('rh.admin');
+  const canValidate = hasPermission('rh.validate');
   const [tab, setTab] = useState('hoje');
+
+  // "Aprovação" só é pedida se houver de facto algo pendente para quem está a
+  // ver — não basta ter a permissão rh.validate, senão a aba aparece vazia
+  // (mesmo critério do frontend-v2: canValidate && pendentes.length > 0)
+  const { pendentes: pontoPendentes } = usePendentes({ tipo: 'ponto' });
+  const temAprovacoesPendentes = canValidate && pontoPendentes.length > 0;
 
   if (!userFk) {
     return (
@@ -426,8 +451,8 @@ const PontoScreen = () => {
   const buttons = [
     { value: 'hoje', label: 'Hoje' },
     { value: 'historico', label: 'Histórico' },
-    { value: 'aprovacao', label: 'Aprovação' },
-    ...(isAdmin ? [{ value: 'facial', label: 'Facial' }] : []),
+    ...(temAprovacoesPendentes ? [{ value: 'aprovacao', label: 'Aprovação' }] : []),
+    ...(isAdmin ? [{ value: 'facial', label: 'Gestão Facial' }] : []),
   ];
 
   return (
@@ -438,7 +463,7 @@ const PontoScreen = () => {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {tab === 'hoje' && <HojeTab userFk={userFk} />}
         {tab === 'historico' && <HistoricoTab userFk={userFk} />}
-        {tab === 'aprovacao' && <AprovacaoTab />}
+        {tab === 'aprovacao' && temAprovacoesPendentes && <AprovacaoTab />}
         {tab === 'facial' && isAdmin && <GestaoFacialTab />}
       </ScrollView>
     </SafeAreaView>
@@ -466,7 +491,17 @@ const styles = StyleSheet.create({
   cardLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
   cardTime: { fontSize: 16, fontWeight: '800' },
   cardCaption: { fontSize: 10, color: COLORS.textDisabled, textAlign: 'center' },
-  miniChip: { height: 22, marginTop: 2 },
+  miniBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 2,
+  },
+  miniBadgeText: { fontSize: 10, fontWeight: '700' },
   emptyHoje: { color: COLORS.textDisabled, textAlign: 'center', marginTop: SPACING.lg, fontSize: 13 },
   filterRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.sm },
   searchInput: { backgroundColor: COLORS.surface },
@@ -476,6 +511,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border,
     padding: SPACING.md, marginBottom: SPACING.sm,
   },
+  facialStatusRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  outlineChip: { backgroundColor: COLORS.overlay },
   rowName: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
   rowMeta: { fontSize: 12, color: COLORS.textSecondary, marginVertical: 2 },
   confirmTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },

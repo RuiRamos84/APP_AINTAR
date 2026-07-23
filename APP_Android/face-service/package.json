@@ -1,0 +1,16 @@
+{
+  "name": "aintar-face-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Micro-serviço de cálculo de descritores faciais (face-api sobre tfjs-node). Chamado pelo backend Flask — nunca exposto directamente à internet.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "4.22.0",
+    "@vladmandic/face-api": "^1.7.15",
+    "jpeg-js": "^0.4.4"
+  }
+}
