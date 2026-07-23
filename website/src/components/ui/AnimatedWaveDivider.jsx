@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 
 /**
  * AnimatedWaveDivider
@@ -16,6 +16,7 @@ export default function AnimatedWaveDivider({
   height = 90,
   className = '',
 }) {
+  const prefersReduced = useReducedMotion()
   const h = height
   // Extra margin at bottom of SVG so the fill never shows a gap during vertical bob
   const svgH = h + 24
@@ -103,8 +104,8 @@ export default function AnimatedWaveDivider({
           key={i}
           className="absolute bottom-0 left-0 w-full"
           style={{ height: `${svgH}px` }}
-          animate={{ y: [-layer.bobAmp, 0, layer.bobAmp, 0, -layer.bobAmp] }}
-          transition={{
+          animate={prefersReduced ? { y: 0 } : { y: [-layer.bobAmp, 0, layer.bobAmp, 0, -layer.bobAmp] }}
+          transition={prefersReduced ? { duration: 0 } : {
             duration: layer.bobDur,
             repeat: Infinity,
             ease: 'easeInOut',
@@ -120,8 +121,10 @@ export default function AnimatedWaveDivider({
               left: 0,
               width: '200%',
               height: `${svgH}px`,
-              animation: `wave ${layer.xDuration} linear infinite`,
-              animationDirection: layer.xDir,
+              ...(prefersReduced ? {} : {
+                animation: `wave ${layer.xDuration} linear infinite`,
+                animationDirection: layer.xDir,
+              }),
             }}
           >
             <svg

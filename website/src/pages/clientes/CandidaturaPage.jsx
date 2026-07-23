@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { CheckCircle, ChevronLeft, ChevronRight, Loader2, AlertCircle, Paperclip, X, Plus } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import PageLayout from '../../components/layout/PageLayout'
 import ScrollReveal from '../../components/ui/ScrollReveal'
 import { getConcursalReferencias, getConcursalProcedimento, submitConcursalCandidatura } from '../../services/cmsApi'
@@ -322,20 +323,28 @@ export default function CandidaturaPage() {
         seoDescription="Submeta a sua candidatura a um processo de recrutamento da AINTAR."
       >
         <section className="section-padding bg-white">
-          <div className="section-container max-w-2xl text-center">
-            <div className="flex justify-center mb-6">
-              <CheckCircle size={64} className="text-green-500" />
-            </div>
-            <h2 className="font-heading font-bold text-aintar-navy text-2xl mb-3">
-              Candidatura submetida com sucesso!
-            </h2>
-            <p className="text-gray-600 mb-8">
-              A sua candidatura foi registada. A AINTAR entrará em contacto através do email indicado.
-            </p>
-            <button onClick={() => navigate('/recursos-humanos')} className="btn-primary">
-              Voltar a Recursos Humanos
-            </button>
-          </div>
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+              className="section-container max-w-2xl text-center"
+            >
+              <div className="flex justify-center mb-6">
+                <CheckCircle size={64} className="text-green-500" />
+              </div>
+              <h2 className="font-heading font-bold text-aintar-navy text-2xl mb-3">
+                Candidatura submetida com sucesso!
+              </h2>
+              <p className="text-gray-600 mb-8">
+                A sua candidatura foi registada. A AINTAR entrará em contacto através do email indicado.
+              </p>
+              <button onClick={() => navigate('/recursos-humanos')} className="btn-primary">
+                Voltar a Recursos Humanos
+              </button>
+            </motion.div>
+          </AnimatePresence>
         </section>
       </PageLayout>
     )

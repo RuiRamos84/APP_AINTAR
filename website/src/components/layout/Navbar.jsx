@@ -65,7 +65,7 @@ function DropdownMenu({ items }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.97 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
-      className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 z-50"
+      className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 z-50 origin-top"
       role="menu"
     >
       <div className="bg-white rounded-2xl shadow-xl shadow-aintar-navy/15 border border-gray-100 overflow-hidden py-2">

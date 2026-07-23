@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Star, MessageSquare, Send, ChevronDown, ChevronUp } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import ScrollReveal from '../../components/ui/ScrollReveal'
 import DarkBgDecorations from '../../components/ui/DarkBgDecorations'
 import { getAvaliacoes, submitAvaliacao } from '../../services/cmsApi'
@@ -384,15 +384,23 @@ export default function AvaliacoesSection() {
                   </div>
 
                   {/* Feedback */}
-                  {feedback && (
-                    <div className={`flex items-start gap-2 px-4 py-3 rounded-xl text-xs font-medium ${
-                      feedback.type === 'success'
-                        ? 'bg-aintar-teal/10 text-aintar-teal border border-aintar-teal/20'
-                        : 'bg-red-50 text-red-500 border border-red-100'
-                    }`}>
-                      {feedback.msg}
-                    </div>
-                  )}
+                  <AnimatePresence>
+                    {feedback && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                        className={`flex items-start gap-2 px-4 py-3 rounded-xl text-xs font-medium ${
+                          feedback.type === 'success'
+                            ? 'bg-aintar-teal/10 text-aintar-teal border border-aintar-teal/20'
+                            : 'bg-red-50 text-red-500 border border-red-100'
+                        }`}
+                      >
+                        {feedback.msg}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Botão */}
                   <div className="flex items-center justify-between gap-4">

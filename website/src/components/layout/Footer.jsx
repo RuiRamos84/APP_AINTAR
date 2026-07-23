@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Mail, Phone, MapPin, ExternalLink, ArrowRight } from 'lucide-react'
+import { useReducedMotion } from 'framer-motion'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 
 const footerLinks = {
@@ -31,6 +32,8 @@ const sectionLabels = {
 }
 
 export default function Footer() {
+  const prefersReduced = useReducedMotion()
+
   return (
     <footer className="bg-hero-gradient text-white relative overflow-hidden">
       <DarkBgDecorations intensity="low" />
@@ -42,11 +45,13 @@ export default function Footer() {
           className="absolute top-0 left-0 h-full"
           style={{
             width: '200%',
-            animationName: 'waveSlide',
-            animationDuration: '12s',
-            animationTimingFunction: 'linear',
-            animationIterationCount: 'infinite',
-            animationDirection: 'reverse',
+            ...(prefersReduced ? {} : {
+              animationName: 'waveSlide',
+              animationDuration: '12s',
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
+              animationDirection: 'reverse',
+            }),
           }}
         >
           <svg viewBox="0 0 2880 64" xmlns="http://www.w3.org/2000/svg"
@@ -65,10 +70,12 @@ export default function Footer() {
           className="absolute top-0 left-0 h-full"
           style={{
             width: '200%',
-            animationName: 'waveSlide',
-            animationDuration: '8s',
-            animationTimingFunction: 'linear',
-            animationIterationCount: 'infinite',
+            ...(prefersReduced ? {} : {
+              animationName: 'waveSlide',
+              animationDuration: '8s',
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
+            }),
           }}
         >
           <svg viewBox="0 0 2880 64" xmlns="http://www.w3.org/2000/svg"

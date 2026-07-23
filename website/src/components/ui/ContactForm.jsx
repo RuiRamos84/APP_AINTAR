@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 
 const inputClass = `w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-aintar-navy text-sm
   focus:outline-none focus:ring-2 focus:ring-aintar-sky/30 focus:border-aintar-sky
@@ -35,15 +36,23 @@ export default function ContactForm({ rows = 5 }) {
 
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center text-center p-12 rounded-3xl bg-aintar-light h-full min-h-[400px]">
-        <div className="w-16 h-16 rounded-full bg-aintar-teal/15 flex items-center justify-center mb-4">
-          <CheckCircle2 size={32} className="text-aintar-teal" />
-        </div>
-        <h3 className="font-heading font-bold text-aintar-navy text-xl mb-2">Mensagem enviada!</h3>
-        <p className="text-gray-500 text-sm max-w-xs">
-          Obrigado pelo contacto. Responderemos em breve.
-        </p>
-      </div>
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+          className="flex flex-col items-center justify-center text-center p-12 rounded-3xl bg-aintar-light h-full min-h-[400px]"
+        >
+          <div className="w-16 h-16 rounded-full bg-aintar-teal/15 flex items-center justify-center mb-4">
+            <CheckCircle2 size={32} className="text-aintar-teal" />
+          </div>
+          <h3 className="font-heading font-bold text-aintar-navy text-xl mb-2">Mensagem enviada!</h3>
+          <p className="text-gray-500 text-sm max-w-xs">
+            Obrigado pelo contacto. Responderemos em breve.
+          </p>
+        </motion.div>
+      </AnimatePresence>
     )
   }
 

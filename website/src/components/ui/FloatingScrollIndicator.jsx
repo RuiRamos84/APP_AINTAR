@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
 export default function FloatingScrollIndicator() {
   const [show, setShow]       = useState(false)
   const [atBottom, setAtBottom] = useState(false)
+  const prefersReduced = useReducedMotion()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -50,8 +51,8 @@ export default function FloatingScrollIndicator() {
             opacity-50 hover:opacity-100 transition-opacity duration-500 group cursor-pointer"
         >
           <motion.div
-            animate={{ y: atBottom ? [0, -5, 0] : [0, 5, 0] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            animate={prefersReduced ? { y: 0 } : { y: atBottom ? [0, -5, 0] : [0, 5, 0] }}
+            transition={prefersReduced ? { duration: 0 } : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
             className="w-8 h-8 rounded-full border border-aintar-sky/40
               flex items-center justify-center
               group-hover:border-aintar-sky/80
