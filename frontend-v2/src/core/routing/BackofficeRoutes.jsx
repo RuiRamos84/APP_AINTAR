@@ -178,6 +178,7 @@ export default function BackofficeRoutes() {
         <Route path="/users" element={<Navigate to="/admin/users" replace />} />
 
         {/* ==================== CMS WEBSITE ==================== */}
+        <Route path="/intern/website" element={<Navigate to="/intern/website/noticias" replace />} />
         <Route path="/intern/website/noticias"    element={<WebsiteNoticiasPage />} />
         <Route path="/intern/website/alertas"     element={<WebsiteAlertasPage />} />
         <Route path="/intern/website/documentos"  element={<WebsiteDocumentosPage />} />
