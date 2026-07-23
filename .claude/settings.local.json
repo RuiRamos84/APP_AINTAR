@@ -216,7 +216,14 @@
       "Bash(./venv/Scripts/python.exe -c \"from app.utils.utils import db_system_session; print\\('ok'\\)\")",
       "Bash(./venv/Scripts/python.exe -m py_compile app/socketio/socketio_events.py app/services/notification_service.py app/routes/tasks_routes.py)",
       "Bash(./venv/Scripts/python.exe -c ' *)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__evaluate_script",
+      "mcp__chrome-devtools__fill",
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__resize_page"
     ],
     "deny": [],
     "ask": [],
