@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Minus, ChevronRight, Maximize2, Minimize2 } from 'lucide-react'
 import PageLayout from '../components/layout/PageLayout'
+import { EASE_TILT_3D } from '../lib/motion'
 import { motion, LayoutGroup } from 'framer-motion'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -120,7 +121,7 @@ function Dado3D({ rx, ry, rolling }) {
           width: SZ, height: SZ,
           position: 'relative', transformStyle: 'preserve-3d',
           transform: `rotateX(${rx}deg) rotateY(${ry}deg)`,
-          transition: 'transform 1.1s cubic-bezier(.23,.68,.35,1)',
+          transition: `transform 1.1s ${EASE_TILT_3D}`,
         }}>
           {[1,2,3,4,5,6].map((v, i) => <Face key={v} value={v} t={FACE_T[i]} />)}
         </div>
@@ -4707,7 +4708,7 @@ function TiltCell({ children, row, col }) {
 
   function onLeave() {
     ref.current.style.transform  = 'perspective(700px) rotateY(0deg) rotateX(0deg) scale(1)'
-    ref.current.style.transition = 'transform 0.5s cubic-bezier(0.23,0.68,0.35,1)'
+    ref.current.style.transition = `transform 0.5s ${EASE_TILT_3D}`
     if (shineRef.current) shineRef.current.style.opacity = '0'
   }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 
 export default function ImageGallery({ images = [] }) {
   const [current, setCurrent]     = useState(0)
@@ -33,11 +34,18 @@ export default function ImageGallery({ images = [] }) {
 
       {/* Carousel */}
       <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-[16/9] group">
-        <img
-          src={img.url}
-          alt={img.legenda || `Foto ${current + 1}`}
-          className="w-full h-full object-cover transition-opacity duration-300"
-        />
+        <AnimatePresence mode="wait">
+          <motion.img
+            key={current}
+            src={img.url}
+            alt={img.legenda || `Foto ${current + 1}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+            className="w-full h-full object-cover"
+          />
+        </AnimatePresence>
 
         {/* Overlay click → lightbox */}
         <button
@@ -93,61 +101,78 @@ export default function ImageGallery({ images = [] }) {
       </div>
 
       {/* Lightbox */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
-          onClick={close}
-        >
-          <div
-            className="relative max-w-5xl w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+            onClick={close}
           >
-            <img
-              src={img.url}
-              alt={img.legenda || `Foto ${current + 1}`}
-              className="w-full max-h-[85vh] object-contain rounded-xl"
-            />
-
-            {img.legenda && (
-              <p className="text-white/80 text-sm text-center mt-3">{img.legenda}</p>
-            )}
-
-            {/* Contador */}
-            <div className="absolute top-3 left-3 bg-black/50 text-white text-xs px-2.5 py-1 rounded-full">
-              {current + 1} / {images.length}
-            </div>
-
-            {/* Fechar */}
-            <button
-              onClick={close}
-              className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 transition-colors duration-200"
-              aria-label="Fechar"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+              className="relative max-w-5xl w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
             >
-              <X size={18} />
-            </button>
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={current}
+                  src={img.url}
+                  alt={img.legenda || `Foto ${current + 1}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                  className="w-full max-h-[85vh] object-contain rounded-xl"
+                />
+              </AnimatePresence>
 
-            {/* Setas lightbox */}
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={prev}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors duration-200"
-                  aria-label="Anterior"
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <button
-                  onClick={next}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors duration-200"
-                  aria-label="Próxima"
-                >
-                  <ChevronRight size={24} />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+              {img.legenda && (
+                <p className="text-white/80 text-sm text-center mt-3">{img.legenda}</p>
+              )}
+
+              {/* Contador */}
+              <div className="absolute top-3 left-3 bg-black/50 text-white text-xs px-2.5 py-1 rounded-full">
+                {current + 1} / {images.length}
+              </div>
+
+              {/* Fechar */}
+              <button
+                onClick={close}
+                className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 transition-colors duration-200"
+                aria-label="Fechar"
+              >
+                <X size={18} />
+              </button>
+
+              {/* Setas lightbox */}
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={prev}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors duration-200"
+                    aria-label="Anterior"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button
+                    onClick={next}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors duration-200"
+                    aria-label="Próxima"
+                  >
+                    <ChevronRight size={24} />
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

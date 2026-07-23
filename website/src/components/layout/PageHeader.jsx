@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight, Home } from 'lucide-react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion'
 import DarkBgDecorations from '../ui/DarkBgDecorations'
 
 // breadcrumbs: [{ label: 'Quem Somos', href: '/quem-somos' }, { label: 'Documentos Financeiros' }]
 export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
+  const prefersReduced = useReducedMotion()
   const { scrollY } = useScroll()
   const y1      = useTransform(scrollY, [0, 300], [0, 60])
   const opacity = useTransform(scrollY, [0, 200], [1, 0.6])
@@ -78,10 +79,12 @@ export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
           className="absolute bottom-0 left-0 h-full"
           style={{
             width: '200%',
-            animationName: 'waveSlide',
-            animationDuration: '12s',
-            animationTimingFunction: 'linear',
-            animationIterationCount: 'infinite',
+            ...(prefersReduced ? {} : {
+              animationName: 'waveSlide',
+              animationDuration: '12s',
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
+            }),
           }}
         >
           <svg viewBox="0 0 2880 64" xmlns="http://www.w3.org/2000/svg"
@@ -100,11 +103,13 @@ export default function PageHeader({ title, subtitle, breadcrumbs = [] }) {
           className="absolute bottom-0 left-0 h-full"
           style={{
             width: '200%',
-            animationName: 'waveSlide',
-            animationDuration: '8s',
-            animationTimingFunction: 'linear',
-            animationIterationCount: 'infinite',
-            animationDirection: 'reverse',
+            ...(prefersReduced ? {} : {
+              animationName: 'waveSlide',
+              animationDuration: '8s',
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
+              animationDirection: 'reverse',
+            }),
           }}
         >
           <svg viewBox="0 0 2880 64" xmlns="http://www.w3.org/2000/svg"

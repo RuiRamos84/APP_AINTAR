@@ -51,10 +51,7 @@ function StatCard({ stat, inView }) {
   const SIZE = 110
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 28 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay: stat.delay, ease: [0.22, 1, 0.36, 1] }}
+    <div
       className="flex flex-col items-center text-center px-4 py-6 group"
       data-statcard="true"
     >
@@ -111,7 +108,7 @@ function StatCard({ stat, inView }) {
       <div className="text-white/35 text-xs leading-relaxed hidden lg:block max-w-[140px]">
         {stat.description}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -124,12 +121,15 @@ export default function StatsSection() {
 
   useGSAP(() => {
     const trigger = sectionRef.current
+    const mm = gsap.matchMedia()
 
-    // Background parallax — camadas de fundo movem a velocidade diferente
-    gsap.to(bgRef.current, {
-      y: '-20%',
-      ease: 'none',
-      scrollTrigger: { trigger, start: 'top bottom', end: 'bottom top', scrub: 1.2 },
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      // Background parallax — camadas de fundo movem a velocidade diferente
+      gsap.to(bgRef.current, {
+        y: '-20%',
+        ease: 'none',
+        scrollTrigger: { trigger, start: 'top bottom', end: 'bottom top', scrub: 1.2 },
+      })
     })
 
     // Stat cards cinematic entrance — escala + opacidade stagger ao entrar

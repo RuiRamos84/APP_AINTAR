@@ -3,7 +3,7 @@ import { ArrowRight, Zap, Shield, Leaf, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ScrollReveal from '../ui/ScrollReveal'
 import TypewriterText from '../ui/TypewriterText'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 
 
 const pillars = [
@@ -15,6 +15,7 @@ const pillars = [
 
 export default function AboutSection() {
   const [imgError, setImgError] = useState(false)
+  const prefersReduced = useReducedMotion()
 
   return (
     <section id="sobre" className="bg-aintar-light flex flex-col min-h-screen">
@@ -57,8 +58,8 @@ export default function AboutSection() {
                 <div className="absolute -bottom-4 -left-4 w-32 h-32 rounded-full bg-aintar-teal/10 -z-10" />
 
                 <motion.div
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  animate={prefersReduced ? { y: 0 } : { y: [0, -8, 0] }}
+                  transition={prefersReduced ? { duration: 0 } : { duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                   className="absolute -right-6 top-10 hidden lg:block"
                 >
                   <div className="bg-aintar-navy rounded-2xl p-4 shadow-xl text-white text-center min-w-[100px]">

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef } from 'react'
 import Lenis from 'lenis'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import usePrefersReducedMotion from '../../hooks/usePrefersReducedMotion'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -10,8 +11,11 @@ export const useLenis = () => useContext(LenisCtx)
 
 export default function LenisProvider({ children }) {
   const lenisRef = useRef(null)
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   useEffect(() => {
+    if (prefersReducedMotion) return // scroll nativo do browser assume, sem Lenis
+
     const lenis = new Lenis({
       duration: 1.2,
       easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -42,8 +46,9 @@ export default function LenisProvider({ children }) {
       gsap.ticker.remove(onTick)
       document.removeEventListener('fullscreenchange', onFullscreenChange)
       lenis.destroy()
+      lenisRef.current = null
     }
-  }, [])
+  }, [prefersReducedMotion])
 
   return (
     <LenisCtx.Provider value={lenisRef}>

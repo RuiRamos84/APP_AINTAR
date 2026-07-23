@@ -10,7 +10,7 @@ const variants = {
   exit: {
     opacity: 0,
     y: -8,
-    transition: { duration: 0.20, ease: 'easeIn' },
+    transition: { duration: 0.20, ease: [0.23, 1, 0.32, 1] },
   },
 }
 

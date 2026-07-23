@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { LogIn, ChevronRight, Users, Activity } from 'lucide-react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -32,33 +32,37 @@ export default function HeroSection() {
   const bgRef      = useRef(null)
   const contentRef = useRef(null)
   const panelRef   = useRef(null)
+  const prefersReduced = useReducedMotion()
 
   useGSAP(() => {
     const trigger = sectionRef.current
+    const mm = gsap.matchMedia()
 
-    // Background layer drifts upward slower — creates depth
-    gsap.to(bgRef.current, {
-      y: '-28%',
-      ease: 'none',
-      scrollTrigger: { trigger, start: 'top top', end: 'bottom top', scrub: 1 },
-    })
-
-    // Content fades + drifts as user scrolls away
-    gsap.to(contentRef.current, {
-      y: '12%',
-      opacity: 0.15,
-      ease: 'none',
-      scrollTrigger: { trigger, start: '25% top', end: 'bottom top', scrub: 1.6 },
-    })
-
-    // Right panel — slightly faster drift for extra depth separation
-    if (panelRef.current) {
-      gsap.to(panelRef.current, {
-        y: '-18%',
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      // Background layer drifts upward slower — creates depth
+      gsap.to(bgRef.current, {
+        y: '-28%',
         ease: 'none',
-        scrollTrigger: { trigger, start: 'top top', end: 'bottom top', scrub: 0.8 },
+        scrollTrigger: { trigger, start: 'top top', end: 'bottom top', scrub: 1 },
       })
-    }
+
+      // Content fades + drifts as user scrolls away
+      gsap.to(contentRef.current, {
+        y: '12%',
+        opacity: 0.15,
+        ease: 'none',
+        scrollTrigger: { trigger, start: '25% top', end: 'bottom top', scrub: 1.6 },
+      })
+
+      // Right panel — slightly faster drift for extra depth separation
+      if (panelRef.current) {
+        gsap.to(panelRef.current, {
+          y: '-18%',
+          ease: 'none',
+          scrollTrigger: { trigger, start: 'top top', end: 'bottom top', scrub: 0.8 },
+        })
+      }
+    })
   }, { scope: sectionRef, dependencies: [] })
 
   return (
@@ -199,8 +203,8 @@ export default function HeroSection() {
 
                 {/* Floating badge */}
                 <motion.div
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                  animate={prefersReduced ? { y: 0 } : { y: [0, -5, 0] }}
+                  transition={prefersReduced ? { duration: 0 } : { duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
                   className="absolute -top-4 -right-4 bg-aintar-navy rounded-2xl border border-aintar-sky/30 px-4 py-2.5 shadow-xl"
                 >
                   <div className="text-2xl font-extrabold font-heading text-aintar-sky leading-none">2022</div>

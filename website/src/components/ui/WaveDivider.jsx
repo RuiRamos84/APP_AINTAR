@@ -5,7 +5,10 @@
  * direction="up"    → secção clara acima, escura abaixo (ex: cabeça de secção dark)
  * color             → cor de preenchimento sólido (deve casar com o fundo da secção adjacente)
  */
+import { useReducedMotion } from 'framer-motion'
+
 export default function WaveDivider({ direction = 'down', color = '#ffffff' }) {
+  const prefersReduced = useReducedMotion()
   const isDown = direction === 'down'
 
   // Cor semi-transparente para a camada de fundo
@@ -38,11 +41,13 @@ export default function WaveDivider({ direction = 'down', color = '#ffffff' }) {
         className={`absolute left-0 h-full ${pos}`}
         style={{
           width: '200%',
-          animationName: 'waveSlide',
-          animationDuration: '12s',
-          animationTimingFunction: 'linear',
-          animationIterationCount: 'infinite',
-          animationDirection: isDown ? 'normal' : 'reverse',
+          ...(prefersReduced ? {} : {
+            animationName: 'waveSlide',
+            animationDuration: '12s',
+            animationTimingFunction: 'linear',
+            animationIterationCount: 'infinite',
+            animationDirection: isDown ? 'normal' : 'reverse',
+          }),
         }}
       >
         <svg viewBox="0 0 2880 64" xmlns="http://www.w3.org/2000/svg"
@@ -56,11 +61,13 @@ export default function WaveDivider({ direction = 'down', color = '#ffffff' }) {
         className={`absolute left-0 h-full ${pos}`}
         style={{
           width: '200%',
-          animationName: 'waveSlide',
-          animationDuration: '8s',
-          animationTimingFunction: 'linear',
-          animationIterationCount: 'infinite',
-          animationDirection: isDown ? 'reverse' : 'normal',
+          ...(prefersReduced ? {} : {
+            animationName: 'waveSlide',
+            animationDuration: '8s',
+            animationTimingFunction: 'linear',
+            animationIterationCount: 'infinite',
+            animationDirection: isDown ? 'reverse' : 'normal',
+          }),
         }}
       >
         <svg viewBox="0 0 2880 64" xmlns="http://www.w3.org/2000/svg"
