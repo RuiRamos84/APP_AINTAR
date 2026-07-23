@@ -54,8 +54,10 @@ const DocumentsLayout = ({ children, onOpenCreate, onExport, onRefresh, isRefres
       >
         <Box sx={{
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
+          rowGap: 1,
           gap: { xs: 1, md: 2 },
         }}>
           {/* Title */}
@@ -71,7 +73,7 @@ const DocumentsLayout = ({ children, onOpenCreate, onExport, onRefresh, isRefres
           </Box>
 
           {/* Actions */}
-          <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 0.75 }, alignItems: 'center', flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: { xs: 0.5, sm: 0.75 }, alignItems: 'center', flexShrink: 0, width: { xs: '100%', md: 'auto' } }}>
             <SearchBar searchTerm={searchTerm} onSearch={setSearchTerm} />
 
             <FilterToggleButton open={filtersOpen} onToggle={toggleFilters} />
