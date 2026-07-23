@@ -52,7 +52,6 @@ const useLogs = (filters) =>
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 const ActivityLogsPage = () => {
-  const theme = useTheme();
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
