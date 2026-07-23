@@ -33,18 +33,6 @@ function portalHtmlPlugin(mode) {
             '<link rel="icon" type="image/x-icon" href="/logos/favicon.ico" />'
           )
           .replace(
-            '<link rel="icon" type="image/png" sizes="192x192" href="/logo192.png" />',
-            '<link rel="icon" type="image/png" sizes="192x192" href="/logos/icon-color.png" />'
-          )
-          .replace(
-            '<link rel="icon" type="image/png" sizes="512x512" href="/logo512.png" />',
-            ''
-          )
-          .replace(
-            '<link rel="apple-touch-icon" href="/logo192.png" />',
-            '<link rel="apple-touch-icon" href="/logos/icon-color.png" />'
-          )
-          .replace(
             'content="#40C4FF" media="(prefers-color-scheme: light)"',
             'content="#1B5E8E" media="(prefers-color-scheme: light)"'
           )
